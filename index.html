@@ -207,10 +207,15 @@
   .stepper button:disabled { color: var(--ink-3); cursor: not-allowed; opacity: .45; }
   .stepper button:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
   .count {
-    min-width: 38px; text-align: center; font-family: var(--mono); font-size: 15px;
-    font-variant-numeric: tabular-nums; border-left: 1px solid var(--line); border-right: 1px solid var(--line); padding: 6px 0;
+    width: 46px; min-width: 46px; text-align: center; font-family: var(--mono); font-size: 15px;
+    font-variant-numeric: tabular-nums; border: 0;
+    border-left: 1px solid var(--line); border-right: 1px solid var(--line);
+    padding: 6px 0; background: transparent; color: var(--ink); border-radius: 0;
   }
-  .stepper.big .count { min-width: 48px; font-size: 17px; }
+  input.count::-webkit-outer-spin-button, input.count::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+  input.count { -moz-appearance: textfield; appearance: textfield; }
+  input.count:focus { outline: 2px solid var(--accent); outline-offset: -2px; background: var(--ground); }
+  .stepper.big .count { width: 62px; min-width: 62px; font-size: 17px; padding: 9px 0; }
   .count.zero { color: var(--ink-3); }
   .linetotal { width: 74px; text-align: right; font-family: var(--mono); font-size: 13px; font-variant-numeric: tabular-nums; color: var(--ink-3); }
   .linetotal.on { color: var(--ink); }
@@ -240,10 +245,19 @@
   .toggle label:has(input:checked) { background: var(--accent-soft); border-color: var(--accent); font-weight: 600; }
   .toggle label:has(input:focus-visible) { outline: 2px solid var(--accent); outline-offset: 2px; }
 
-  input[type="date"], input[type="text"], input[type="number"], input[type="password"], textarea {
+  input[type="date"], input[type="text"], input[type="number"], input[type="password"], textarea, select {
     width: 100%; padding: 9px 10px; border: 1px solid var(--line-strong); border-radius: 3px;
     background: var(--ground); color: var(--ink); font-family: var(--sans); font-size: 14px;
   }
+  select {
+    appearance: none; -webkit-appearance: none;
+    background-image: linear-gradient(45deg, transparent 50%, currentColor 50%), linear-gradient(135deg, currentColor 50%, transparent 50%);
+    background-position: right 14px center, right 9px center;
+    background-size: 5px 5px, 5px 5px;
+    background-repeat: no-repeat;
+    padding-right: 28px; cursor: pointer;
+  }
+  select:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
   input[type="date"], input[type="number"] { font-family: var(--mono); font-size: 13.5px; }
   textarea { resize: vertical; min-height: 62px; line-height: 1.45; }
   input:focus-visible, textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
@@ -353,8 +367,55 @@
     .controls { grid-column: 1 / -1; justify-content: space-between; }
   }
 
-  .addform { display: grid; grid-template-columns: minmax(0,2fr) minmax(0,2fr) 90px 90px auto; gap: 10px; align-items: end; margin-top: 16px; padding: 16px; background: var(--panel); border: 1px solid var(--line); border-radius: 4px; }
-  @media (max-width: 820px) { .addform { grid-template-columns: 1fr 1fr; } }
+  .addform {
+    margin-top: 20px; padding: 20px; background: var(--panel);
+    border: 1px solid var(--line-strong); border-radius: 4px;
+  }
+  .addform h3 { font-family: var(--serif); font-size: 19px; font-weight: 400; margin: 0 0 16px; }
+  .addgrid { display: grid; grid-template-columns: 104px minmax(0, 1fr); gap: 18px; align-items: start; }
+  .addfields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+  .addfields .wide { grid-column: 1 / -1; }
+  .addform input, .addform select { padding: 10px 11px; font-size: 14.5px; }
+  .addform .btn { margin-top: 4px; }
+  @media (max-width: 620px) {
+    .addgrid { grid-template-columns: 1fr; }
+    .addfields { grid-template-columns: 1fr; }
+  }
+
+  /* money field with a visible $ */
+  .money-field { display: flex; align-items: stretch; }
+  .money-field span {
+    display: flex; align-items: center; padding: 0 10px;
+    border: 1px solid var(--line-strong); border-right: 0; border-radius: 3px 0 0 3px;
+    background: var(--panel-2); color: var(--ink-3); font-family: var(--mono); font-size: 13px;
+  }
+  .money-field input { border-radius: 0 3px 3px 0; }
+
+  /* photo picker */
+  .photopick {
+    position: relative; width: 104px; height: 104px; border-radius: 4px; overflow: hidden;
+    border: 1px dashed var(--line-strong); background: var(--ground); cursor: pointer;
+    display: flex; align-items: center; justify-content: center; padding: 0;
+    font-family: var(--sans); color: var(--ink-3); font-size: 12px; text-align: center; line-height: 1.35;
+  }
+  .photopick:hover { border-color: var(--accent); color: var(--accent); }
+  .photopick:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .photopick img { width: 100%; height: 100%; object-fit: cover; }
+  .photopick input[type="file"] { display: none; }
+
+  /* photo button on a bench row */
+  .thumbwrap { position: relative; width: 56px; }
+  .thumbwrap .thumbbtn {
+    position: absolute; inset: 0; border: 0; padding: 0; cursor: pointer; border-radius: 3px;
+    background: transparent;
+  }
+  .thumbwrap .thumbbtn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .thumbwrap .badge {
+    position: absolute; right: -4px; bottom: -4px; width: 20px; height: 20px; border-radius: 50%;
+    background: var(--accent); color: var(--on-accent); font-size: 12px; line-height: 20px;
+    text-align: center; pointer-events: none; box-shadow: 0 0 0 2px var(--ground);
+  }
+  .photo-note { font-size: 12.5px; color: var(--glaucous); margin: 8px 0 0; min-height: 17px; }
 
   .notes { margin-top: 34px; border-top: 2px solid var(--line-strong); padding-top: 20px; display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 24px; }
   .notes h3 { font-family: var(--mono); font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase; color: var(--accent); margin: 0 0 8px; }
@@ -634,23 +695,40 @@
     <div class="list" id="bench-list"></div>
 
     <form class="addform" id="addform" autocomplete="off">
-      <div>
-        <div class="field-label"><label for="a-name">Plant name</label></div>
-        <input type="text" id="a-name" placeholder="Ghost Plant" required>
+      <h3>Add a plant</h3>
+      <div class="addgrid">
+        <label class="photopick" id="a-photo-pick" tabindex="0">
+          <span id="a-photo-label">Add a photo</span>
+          <input type="file" id="a-photo" accept="image/*">
+        </label>
+        <div class="addfields">
+          <div class="wide">
+            <div class="field-label"><label for="a-name">Plant name</label></div>
+            <input type="text" id="a-name" placeholder="Blue Barrel Cactus" required>
+          </div>
+          <div class="wide">
+            <div class="field-label"><label for="a-latin">Botanical name, if you know it</label></div>
+            <input type="text" id="a-latin" placeholder="Ferocactus glaucescens">
+          </div>
+          <div>
+            <div class="field-label"><label for="a-size">Size</label></div>
+            <select id="a-size"></select>
+            <input type="text" id="a-size-custom" placeholder="Type the size" hidden>
+          </div>
+          <div>
+            <div class="field-label"><label for="a-price">Price each</label></div>
+            <div class="money-field"><span>$</span><input type="number" id="a-price" min="0" step="0.5" placeholder="25"></div>
+          </div>
+          <div>
+            <div class="field-label"><label for="a-qty" id="a-qty-label">How many</label></div>
+            <input type="number" id="a-qty" min="0" placeholder="12" value="1">
+          </div>
+          <div style="display:flex;align-items:flex-end">
+            <button type="submit" class="btn">Add plant</button>
+          </div>
+        </div>
       </div>
-      <div>
-        <div class="field-label"><label for="a-latin">Botanical name</label></div>
-        <input type="text" id="a-latin" placeholder="Graptopetalum paraguayense">
-      </div>
-      <div>
-        <div class="field-label"><label for="a-size">Size</label></div>
-        <select id="a-size"></select>
-      </div>
-      <div>
-        <div class="field-label"><label for="a-price">Price</label></div>
-        <input type="number" id="a-price" min="0" step="0.5" placeholder="5.00">
-      </div>
-      <button type="submit" class="btn auto">Add</button>
+      <p class="photo-note" id="a-photo-note"></p>
     </form>
 
     <div class="notes">
@@ -795,7 +873,31 @@ function load() {
   try { var raw = localStorage.getItem(KEY); if (raw) { S = JSON.parse(raw); return; } } catch (e) {}
   S = JSON.parse(JSON.stringify(SEED));
 }
-function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} }
+function save() {
+  try { localStorage.setItem(KEY, JSON.stringify(S)); return true; }
+  catch (e) { return false; }
+}
+
+// Shrink to a 400px square before storing, or photos blow the browser's storage limit.
+function readPhoto(file, cb) {
+  if (!file || !/^image\//.test(file.type)) { cb(null, "That file is not an image."); return; }
+  var fr = new FileReader();
+  fr.onerror = function () { cb(null, "Could not read that file."); };
+  fr.onload = function () {
+    var img = new Image();
+    img.onerror = function () { cb(null, "Could not open that image."); };
+    img.onload = function () {
+      var N = 400, c = document.createElement("canvas");
+      c.width = N; c.height = N;
+      var side = Math.min(img.width, img.height);
+      c.getContext("2d").drawImage(img, (img.width - side) / 2, (img.height - side) / 2, side, side, 0, 0, N, N);
+      try { cb(c.toDataURL("image/jpeg", 0.72), null); }
+      catch (e) { cb(null, "Could not process that image."); }
+    };
+    img.src = fr.result;
+  };
+  fr.readAsDataURL(file);
+}
 function yard(id) { return S.yards.filter(function (y) { return y.id === id; })[0]; }
 function shopping() { return yard(S.shopping); }
 function isOwner() { return !!S.session && S.session.kind === "owner"; }
@@ -826,7 +928,9 @@ var esc = function (s) {
 };
 var plural = function (n, y) { return n + " " + (n === 1 ? y.unit : y.units); };
 
-function photoOf(it) { return (typeof PHOTOS !== "undefined" && it.photo && PHOTOS[it.photo]) || null; }
+function photoOf(it) {
+  return it.photoData || (typeof PHOTOS !== "undefined" && it.photo && PHOTOS[it.photo]) || null;
+}
 function thumbHTML(it, cls) {
   var p = photoOf(it);
   return p
@@ -990,7 +1094,8 @@ function renderShop() {
           '<span>' + z.qty + ' on hand</span>' + stock + '</span>' +
         '<div class="stepper">' +
           '<button type="button" data-sid="' + z.sid + '" data-d="-1" aria-label="One fewer ' + esc(it.common) + ' ' + esc(z.size) + '"' + (n ? "" : " disabled") + '>&minus;</button>' +
-          '<span class="count' + (n ? "" : " zero") + '" aria-live="polite">' + n + '</span>' +
+          '<input type="number" min="0" max="' + z.qty + '" class="count' + (n ? "" : " zero") + '" value="' + n +
+            '" data-take="' + z.sid + '" aria-label="How many ' + esc(it.common) + ' ' + esc(z.size) + '">' +
           '<button type="button" data-sid="' + z.sid + '" data-d="1" aria-label="One more ' + esc(it.common) + ' ' + esc(z.size) + '"' + (n >= z.qty ? " disabled" : "") + '>+</button>' +
         '</div>' +
         '<span class="linetotal' + (n ? " on" : "") + '">' + (n ? money(n * z.price) : "") + '</span>' +
@@ -1006,6 +1111,14 @@ function renderShop() {
       b.addEventListener("click", function () {
         var z = findSize(y, b.dataset.sid);
         picked[z.sid] = Math.max(0, Math.min(z.qty, (picked[z.sid] || 0) + Number(b.dataset.d)));
+        renderShop();
+      });
+    });
+    row.querySelectorAll("[data-take]").forEach(function (inp) {
+      inp.addEventListener("focus", function () { inp.select(); });
+      inp.addEventListener("change", function () {
+        var z = findSize(y, inp.dataset.take);
+        picked[z.sid] = Math.max(0, Math.min(z.qty, Math.floor(Number(inp.value) || 0)));
         renderShop();
       });
     });
@@ -1444,6 +1557,7 @@ function renderBench() {
   document.getElementById("b-name").textContent = y.name;
   document.getElementById("b-who").textContent = "Signed in as " + (y.account ? y.account.user : "");
   document.getElementById("b-onhand-l").textContent = y.units + " on hand";
+  document.getElementById("a-qty-label").textContent = "How many " + y.units;
   document.getElementById("b-waiting").textContent = y.orders.filter(function (o) { return !o.staged; }).length;
   document.getElementById("b-live").textContent = listed(y).length;
   var onHand = 0;
@@ -1474,7 +1588,8 @@ function renderBench() {
             '<div class="fill-name">' + esc(l.common) + (l.size ? ' \u00B7 ' + esc(l.size) : '') + '<small>asked for ' + l.qty + '</small></div>' +
             '<div class="stepper">' +
               '<button type="button" data-fill="' + idx + '" data-li="' + li + '" data-d="-1" aria-label="One fewer ' + esc(l.common) + '"' + (l.filled ? "" : " disabled") + '>&minus;</button>' +
-              '<span class="count' + (l.filled ? "" : " zero") + '">' + l.filled + '</span>' +
+              '<input type="number" min="0" max="' + l.qty + '" class="count' + (l.filled ? "" : " zero") + '" value="' + l.filled +
+                '" data-fillnum="' + idx + '" data-li="' + li + '" aria-label="How many ' + esc(l.common) + ' you found">' +
               '<button type="button" data-fill="' + idx + '" data-li="' + li + '" data-d="1" aria-label="One more ' + esc(l.common) + '"' + (l.filled >= l.qty ? " disabled" : "") + '>+</button>' +
             '</div>' + flag + '</div>';
         }).join("") + '</div>';
@@ -1497,6 +1612,14 @@ function renderBench() {
     orderList.appendChild(el);
   });
 
+  orderList.querySelectorAll("[data-fillnum]").forEach(function (inp) {
+    inp.addEventListener("focus", function () { inp.select(); });
+    inp.addEventListener("change", function () {
+      var l = y.orders[Number(inp.dataset.fillnum)].lines[Number(inp.dataset.li)];
+      l.filled = Math.max(0, Math.min(l.qty, Math.floor(Number(inp.value) || 0)));
+      save(); renderBench(); renderHistory();
+    });
+  });
   orderList.querySelectorAll("[data-fill]").forEach(function (b) {
     b.addEventListener("click", function () {
       var l = y.orders[Number(b.dataset.fill)].lines[Number(b.dataset.li)];
@@ -1538,7 +1661,8 @@ function renderBench() {
           '" data-price="' + i + '" data-zi="' + zi + '" aria-label="Price"' + (z.price <= 0 ? ' class="flagged"' : "") + '></div>' +
         '<div class="stepper big">' +
           '<button type="button" data-qty="' + i + '" data-zi="' + zi + '" data-d="-1" aria-label="One fewer"' + (z.qty ? "" : " disabled") + '>&minus;</button>' +
-          '<span class="count' + (z.qty ? "" : " zero") + '">' + z.qty + '</span>' +
+          '<input type="number" min="0" class="count' + (z.qty ? "" : " zero") + '" value="' + z.qty +
+            '" data-count="' + i + '" data-zi="' + zi + '" aria-label="How many ' + esc(it.common) + ' ' + esc(z.size) + '">' +
           '<button type="button" data-qty="' + i + '" data-zi="' + zi + '" data-d="1" aria-label="One more">+</button>' +
         '</div>' +
         (it.sizes.length > 1
@@ -1549,7 +1673,12 @@ function renderBench() {
 
     var row = document.createElement("div");
     row.className = "brow" + (live ? "" : " out");
-    row.innerHTML = thumbHTML(it) +
+    row.innerHTML =
+      '<div class="thumbwrap">' + thumbHTML(it) +
+        '<button type="button" class="thumbbtn" data-pic="' + i + '" aria-label="' +
+          (photoOf(it) ? "Change the photo for " : "Add a photo for ") + esc(it.common) + '"></button>' +
+        '<span class="badge" aria-hidden="true">' + (photoOf(it) ? "\u21bb" : "+") + '</span>' +
+      '</div>' +
       '<div class="name">' + nameHTML(it) +
         '<div class="meta"><span>' + (live ? live + (live === 1 ? " size listed" : " sizes listed") : "Not showing, needs a price or a count") + '</span></div>' +
         '<div class="bsizes">' + rows +
@@ -1565,6 +1694,36 @@ function renderBench() {
       var z = y.items[Number(b.dataset.qty)].sizes[Number(b.dataset.zi)];
       z.qty = Math.max(0, z.qty + Number(b.dataset.d));
       save(); renderBench(); renderShop(); renderPortal();
+    });
+  });
+  benchList.querySelectorAll("[data-count]").forEach(function (inp) {
+    inp.addEventListener("focus", function () { inp.select(); });
+    inp.addEventListener("change", function () {
+      var z = y.items[Number(inp.dataset.count)].sizes[Number(inp.dataset.zi)];
+      z.qty = Math.max(0, Math.floor(Number(inp.value) || 0));
+      save(); renderBench(); renderShop(); renderPortal();
+    });
+  });
+  benchList.querySelectorAll("[data-pic]").forEach(function (b) {
+    b.addEventListener("click", function () {
+      var it = y.items[Number(b.dataset.pic)];
+      var f = document.createElement("input");
+      f.type = "file"; f.accept = "image/*";
+      f.addEventListener("change", function () {
+        readPhoto(f.files[0], function (data, err) {
+          if (err || !data) { flashPhoto(err || "Could not add that photo."); return; }
+          var before = it.photoData;
+          it.photoData = data;
+          if (!save()) {
+            it.photoData = before; save();
+            flashPhoto("No room left for more photos. Remove one and try again.");
+            return;
+          }
+          flashPhoto("Photo added.");
+          renderBench(); renderShop(); renderPortal();
+        });
+      });
+      f.click();
     });
   });
   benchList.querySelectorAll("[data-price]").forEach(function (inp) {
@@ -1617,25 +1776,79 @@ function renderBench() {
   });
 }
 
+var newPhoto = null;
+
+function flashPhoto(msg) {
+  var n = document.getElementById("a-photo-note");
+  n.textContent = msg;
+  setTimeout(function () { if (n.textContent === msg) n.textContent = ""; }, 4000);
+}
+
 document.getElementById("a-size").innerHTML = sizeOptions("4 in");
+
+document.getElementById("a-size").addEventListener("change", function () {
+  var custom = document.getElementById("a-size-custom");
+  var isOther = this.value === "__other";
+  custom.hidden = !isOther;
+  if (isOther) { custom.focus(); }
+});
+
+document.getElementById("a-photo-pick").addEventListener("keydown", function (e) {
+  if (e.key === "Enter" || e.key === " ") { e.preventDefault(); document.getElementById("a-photo").click(); }
+});
+
+document.getElementById("a-photo").addEventListener("change", function () {
+  var input = this;
+  readPhoto(input.files[0], function (data, err) {
+    if (err || !data) { flashPhoto(err || "Could not add that photo."); return; }
+    newPhoto = data;
+    document.getElementById("a-photo-label").outerHTML =
+      '<img id="a-photo-label" src="' + data + '" alt="The photo you picked">';
+    flashPhoto("Photo ready. It saves when you add the plant.");
+    input.value = "";
+  });
+});
+
+function resetAddForm() {
+  ["a-name", "a-latin", "a-price"].forEach(function (id) { document.getElementById(id).value = ""; });
+  document.getElementById("a-qty").value = "1";
+  document.getElementById("a-size").innerHTML = sizeOptions("4 in");
+  var custom = document.getElementById("a-size-custom");
+  custom.value = ""; custom.hidden = true;
+  newPhoto = null;
+  var label = document.getElementById("a-photo-label");
+  if (label) label.outerHTML = '<span id="a-photo-label">Add a photo</span>';
+}
 
 document.getElementById("addform").addEventListener("submit", function (e) {
   e.preventDefault();
   var y = sessionYard();
   var name = document.getElementById("a-name").value.trim();
   if (!y || !name) return;
-  var chosen = document.getElementById("a-size").value;
+
+  var sel = document.getElementById("a-size").value;
+  var size = sel === "__other" ? document.getElementById("a-size-custom").value.trim() : sel;
   var id = "x" + Date.now();
+
   y.items.push({
     id: id,
     common: name,
     latin: document.getElementById("a-latin").value.trim(),
     photo: null,
-    sizes: [{ sid: id + "-a", size: chosen === "__other" ? "" : chosen,
-              price: Math.max(0, Number(document.getElementById("a-price").value) || 0), qty: 1 }]
+    photoData: newPhoto,
+    sizes: [{
+      sid: id + "-a", size: size,
+      price: Math.max(0, Number(document.getElementById("a-price").value) || 0),
+      qty: Math.max(0, Math.floor(Number(document.getElementById("a-qty").value) || 0))
+    }]
   });
-  save(); e.target.reset();
-  document.getElementById("a-size").innerHTML = sizeOptions("4 in");
+
+  if (!save()) {
+    y.items.pop(); save();
+    flashPhoto("No room left for more photos. Add the plant without one, or remove a photo elsewhere.");
+    return;
+  }
+  resetAddForm();
   renderBench(); renderShop(); renderPortal();
 });
 
