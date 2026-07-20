@@ -511,6 +511,32 @@
   .bar a { background: var(--accent); color: var(--on-accent); padding: 9px 16px; border-radius: 3px; text-decoration: none; font-weight: 600; font-family: var(--sans); }
   @media (max-width: 900px) { body.shopping .bar { display: flex; } }
 
+  .callout-invite {
+    border: 1px solid var(--accent); background: var(--accent-soft); border-radius: 4px;
+    padding: 16px 18px; margin-top: 22px;
+  }
+  .callout-invite h3 { margin-bottom: 4px; }
+  .callout-invite p { font-size: 13.5px; color: var(--ink-2); margin: 0 0 10px; }
+
+  .scroll-x { overflow-x: auto; border: 1px solid var(--line); border-radius: 4px; }
+  .inside-table { border-collapse: collapse; width: 100%; min-width: 560px; background: var(--panel); }
+  .inside-table th, .inside-table td { text-align: left; padding: 10px 14px; border-bottom: 1px solid var(--line); font-size: 13.5px; }
+  .inside-table thead th {
+    font-family: var(--mono); font-size: 10px; letter-spacing: .12em; text-transform: uppercase;
+    color: var(--ink-3); font-weight: 400; background: var(--panel-2); white-space: nowrap;
+  }
+  .inside-table tbody tr:last-child td { border-bottom: 0; }
+  .inside-table td.num { font-family: var(--mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .inside-table tr.dim td { color: var(--ink-3); }
+
+  .yard-actions { display: flex; align-items: center; gap: 12px; justify-content: space-between; border-top: 1px dashed var(--line-strong); padding-top: 12px; }
+  .inside-btn {
+    background: none; border: 0; padding: 0; cursor: pointer; font-family: var(--mono);
+    font-size: 11px; letter-spacing: .09em; text-transform: uppercase; color: var(--ink-3);
+  }
+  .inside-btn:hover { color: var(--accent); }
+  .inside-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
   .splash {
     padding: 60px 0; text-align: center; color: var(--ink-3);
     font-family: var(--serif); font-size: 19px;
@@ -653,6 +679,44 @@
         <span class="hint" id="copy-note"></span>
       </div>
     </section>
+  </div>
+
+  <!-- ============ INSIDE (owner only) ============ -->
+  <div id="view-inside" hidden>
+    <button type="button" class="back" id="back-inside">&larr; All growers</button>
+    <header class="masthead">
+      <div>
+        <p class="eyebrow" id="i-status">Inside view</p>
+        <h1 id="i-name">Grower</h1>
+      </div>
+      <dl class="terms" id="i-terms"></dl>
+    </header>
+
+    <div id="i-invite" class="callout-invite" hidden>
+      <h3>They have not set up their login yet</h3>
+      <p>Send them this link. It works once and greets them by name.</p>
+      <div class="linkrow">
+        <input type="text" id="i-link" readonly>
+        <button type="button" class="btn ghost auto" id="i-copy">Copy</button>
+      </div>
+    </div>
+
+    <div id="i-reset-wrap" class="callout-invite" hidden style="border-color: var(--alarm); background: transparent;">
+      <h3>Their login</h3>
+      <p>They sign in with a username and password they chose. If they are locked out, or this login should not exist, reset it. Their plants and orders stay; only the login goes, and their invite code works again.</p>
+      <button type="button" class="btn ghost auto" id="i-reset">Reset their login</button>
+    </div>
+
+    <div class="section-label" style="margin-top:26px"><span>Everything they have, including hidden</span><span id="i-count"></span></div>
+    <div class="scroll-x">
+      <table class="inside-table">
+        <thead><tr><th>Plant</th><th>Size</th><th>Sold as</th><th>Price</th><th>On hand</th><th>Showing to you</th></tr></thead>
+        <tbody id="i-listings"></tbody>
+      </table>
+    </div>
+
+    <div class="section-label" style="margin-top:30px"><span>Every order</span></div>
+    <div class="history" id="i-orders"></div>
   </div>
 
   <!-- ============ GATE ============ -->
@@ -1102,17 +1166,26 @@ function renderPortal() {
       return p ? '<img src="' + p + '" alt="">' : '<div class="ph"></div>';
     }).join("");
 
-    var b = document.createElement("button");
-    b.type = "button";
+    var b = document.createElement("div");
     b.className = "yard";
+    b.setAttribute("tabindex", "0");
+    b.setAttribute("role", "button");
+    b.setAttribute("aria-label", "Shop " + y.name);
     b.innerHTML =
       '<div><h2>' + esc(y.name) + '</h2><p class="where">' + esc(y.where) + '</p></div>' +
       '<p class="sells">' + esc(y.sells) + '</p>' +
       '<div class="strip">' + strip + '</div>' +
       '<div class="yard-foot"><span>' + live.length + ' listed \u00B7 ' + range +
         (waiting ? ' \u00B7 <span style="color:var(--alarm)">' + waiting + ' order waiting</span>' : "") +
-      '</span><span class="go">Shop &rarr;</span></div>';
+      '</span><span class="go">Shop &rarr;</span></div>' +
+      '<div class="yard-actions"><button type="button" class="inside-btn">See their backend</button>' +
+        '<span class="where">' + (y.hasLogin ? "login active" : "no login yet") + '</span></div>';
     b.addEventListener("click", function () { openShop(y.id); });
+    b.addEventListener("keydown", function (e) { if (e.key === "Enter") openShop(y.id); });
+    b.querySelector(".inside-btn").addEventListener("click", function (e) {
+      e.stopPropagation();
+      openInside(y.id);
+    });
     box.appendChild(b);
   });
 }
@@ -1141,6 +1214,116 @@ document.getElementById("invite-copy").addEventListener("click", function () {
   if (navigator.clipboard && navigator.clipboard.writeText) {
     navigator.clipboard.writeText(f.value).then(function () { note.textContent = "Copied. Send it however you normally reach them."; });
   } else { note.textContent = "Select the link above and copy it."; }
+});
+
+var insideId = null;
+
+function openInside(id) {
+  insideId = id;
+  renderInside();
+  setView("inside");
+}
+
+function renderInside() {
+  var y = yard(insideId);
+  if (!y) { setView("portal"); return; }
+
+  document.getElementById("i-name").textContent = y.name;
+  document.getElementById("i-status").textContent =
+    (y.where ? y.where + " \u00B7 " : "") + (y.hasLogin ? "login active" : "no login yet");
+
+  var totalOnHand = 0, hiddenCount = 0, benchValue = 0, live = 0;
+  y.items.forEach(function (it) {
+    it.sizes.forEach(function (z) {
+      totalOnHand += z.qty;
+      benchValue += z.qty * z.price;
+      if (z.qty > 0 && z.price > 0) live++; else hiddenCount++;
+    });
+  });
+  var open = y.orders.filter(function (o) { return !o.staged; }).length;
+  document.getElementById("i-terms").innerHTML =
+    "<div><dt>Showing</dt><dd>" + live + "</dd></div>" +
+    "<div><dt>Hidden</dt><dd>" + hiddenCount + "</dd></div>" +
+    "<div><dt>On the bench</dt><dd>" + money(benchValue) + "</dd></div>" +
+    "<div><dt>Open orders</dt><dd>" + open + "</dd></div>";
+
+  var inviteBox = document.getElementById("i-invite");
+  inviteBox.hidden = y.hasLogin || !y.code;
+  if (!inviteBox.hidden) document.getElementById("i-link").value = inviteLink(y.code);
+  document.getElementById("i-reset-wrap").hidden = !y.hasLogin;
+
+  document.getElementById("i-count").textContent = (live + hiddenCount) + " listings";
+  var tb = document.getElementById("i-listings");
+  tb.innerHTML = "";
+  y.items.forEach(function (it) {
+    it.sizes.forEach(function (z) {
+      var visible = z.qty > 0 && z.price > 0;
+      var why = visible ? "Yes"
+        : z.price <= 0 ? "No, needs a price" : "No, sold out";
+      var tr = document.createElement("tr");
+      if (!visible) tr.className = "dim";
+      tr.innerHTML =
+        "<td>" + esc(it.common) + (it.latin ? ' <span style="color:var(--ink-3)">' + esc(it.latin) + "</span>" : "") + "</td>" +
+        "<td>" + esc(z.size || "") + "</td>" +
+        "<td>" + (z.pack > 1 ? "Tray of " + z.pack : "Each") + "</td>" +
+        '<td class="num">' + (z.price > 0 ? money(z.price) : "") + "</td>" +
+        '<td class="num">' + z.qty + "</td>" +
+        "<td>" + why + "</td>";
+      tb.appendChild(tr);
+    });
+  });
+  if (!y.items.length) tb.innerHTML = '<tr><td colspan="6">Nothing listed yet.</td></tr>';
+
+  var box = document.getElementById("i-orders");
+  box.innerHTML = "";
+  if (!y.orders.length) box.innerHTML = '<div class="empty">No orders yet.</div>';
+  y.orders.forEach(function (o) {
+    var short = o.staged && o.lines.some(function (l) { return l.filled < l.qty; });
+    var st = !o.staged ? ["sent", "With the grower"] : short ? ["short", "Staged, short"] : ["staged", "Staged and ready"];
+    var units = 0, total = 0;
+    o.lines.forEach(function (l) { var q = o.staged ? l.filled : l.qty; units += q; total += q * l.price; });
+    var when = o.mode === "pickup" ? "Pickup " + prettyDate(o.date) : "Delivery to " + (o.addr || "address to confirm");
+    var el = document.createElement("div");
+    el.className = "hist";
+    el.innerHTML =
+      '<div class="hist-top"><div><p>' + esc(when) + "</p>" +
+        '<span class="hist-sub">' + esc(o.ref) + " \u00B7 " + units + (units === 1 ? " item" : " items") + " \u00B7 " + money(total) + "</span>" +
+      '</div><span class="status ' + st[0] + '">' + st[1] + "</span></div>" +
+      "<ul>" + o.lines.map(function (l) {
+        var q = o.staged && l.filled !== l.qty
+          ? "<b><span class=\"strike\">" + l.qty + "</span> " + l.filled + "</b>"
+          : "<b>" + l.qty + "</b>";
+        return "<li>" + q + "<span>" + esc(l.common) +
+          (l.size ? ' <span style="color:var(--ink-3)">' + esc(l.size) + "</span>" : "") + "</span></li>";
+      }).join("") + "</ul>" +
+      (o.note ? '<p class="order-note" style="margin-top:8px">Note: ' + esc(o.note) + "</p>" : "");
+    box.appendChild(el);
+  });
+}
+
+document.getElementById("i-reset").addEventListener("click", function () {
+  var y = yard(insideId);
+  if (!y) return;
+  if (!confirm("Reset the login for " + y.name + "? They get signed out everywhere and set up fresh with their invite link. Plants and orders are not touched.")) return;
+  var b = document.getElementById("i-reset");
+  b.disabled = true;
+  api({ action: "resetLogin", growerId: y.id }).then(function (j) {
+    b.disabled = false;
+    if (j.error) { toast(j.error); return; }
+    toast("Login reset. Their invite link works again.");
+    refreshPortal().then(function () { renderPortal(); renderInside(); });
+  }).catch(function () { b.disabled = false; });
+});
+
+document.getElementById("back-inside").addEventListener("click", function () {
+  insideId = null; renderPortal(); setView("portal");
+});
+document.getElementById("i-copy").addEventListener("click", function () {
+  var f = document.getElementById("i-link");
+  f.select();
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(f.value).then(function () { toast("Invite link copied."); });
+  }
 });
 
 function openShop(id) {
@@ -2050,10 +2233,10 @@ document.getElementById("addform").addEventListener("submit", function (e) {
 
 /* ================= ROUTING ================= */
 
-var VIEWS = { portal: "view-portal", shop: "view-shop", gate: "view-gate", bench: "view-bench", setup: "view-setup" };
+var VIEWS = { portal: "view-portal", shop: "view-shop", gate: "view-gate", bench: "view-bench", setup: "view-setup", inside: "view-inside" };
 
 function setView(v) {
-  if ((v === "portal" || v === "shop") && !isOwner()) v = landing();
+  if ((v === "portal" || v === "shop" || v === "inside") && !isOwner()) v = landing();
   if ((v === "bench" || v === "setup") && !sessionYard()) v = landing();
   Object.keys(VIEWS).forEach(function (k) { document.getElementById(VIEWS[k]).hidden = k !== v; });
   document.body.className = document.body.className.replace(/\bshopping\b/, "").trim();
