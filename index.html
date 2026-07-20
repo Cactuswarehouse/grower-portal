@@ -511,16 +511,41 @@
   .bar a { background: var(--accent); color: var(--on-accent); padding: 9px 16px; border-radius: 3px; text-decoration: none; font-weight: 600; font-family: var(--sans); }
   @media (max-width: 900px) { body.shopping .bar { display: flex; } }
 
+  .splash {
+    padding: 60px 0; text-align: center; color: var(--ink-3);
+    font-family: var(--serif); font-size: 19px;
+  }
+  .toast {
+    position: fixed; left: 50%; bottom: 24px; transform: translate(-50%, 12px);
+    background: var(--flat); color: #F2F2EA; padding: 11px 18px; border-radius: 4px;
+    font-size: 13.5px; opacity: 0; pointer-events: none; transition: opacity .2s ease, transform .2s ease;
+    z-index: 60; max-width: min(92vw, 480px); text-align: center;
+  }
+  .toast.show { opacity: 1; transform: translate(-50%, 0); }
+  body.busy::before {
+    content: ""; position: fixed; top: 0; left: 0; right: 0; height: 3px; z-index: 70;
+    background: linear-gradient(90deg, transparent, var(--accent), transparent);
+    background-size: 40% 100%; background-repeat: no-repeat;
+    animation: busyslide 1s linear infinite;
+  }
+  @keyframes busyslide {
+    from { background-position: -40% 0; }
+    to { background-position: 140% 0; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    body.busy::before { animation: none; background: var(--accent); }
+  }
+
   [hidden] { display: none !important; }
   @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 </style>
 
 <div class="wrap">
 
-  <p class="demo-note">
-    <b>Test copy.</b>
-    <span>Logins here are for showing the flow only, with no real security, and each browser keeps its own copy of the data. Both get fixed in the hosted version.</span>
-  </p>
+  <div id="splash" class="splash">Loading your portal&hellip;</div>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+
 
   <!-- ============ PORTAL ============ -->
   <div id="view-portal">
@@ -532,7 +557,7 @@
       <dl class="terms">
         <div><dt>Growers</dt><dd id="p-yards">0</dd></div>
         <div><dt>Open orders</dt><dd id="p-open">0</dd></div>
-        <div><dt>&nbsp;</dt><dd><button type="button" class="btn ghost auto" id="signout-owner">Sign out</button></dd></div>
+        <div><dt>&nbsp;</dt><dd style="display:flex;gap:8px"><button type="button" class="btn ghost auto" id="changepass-owner">Change password</button><button type="button" class="btn ghost auto" id="signout-owner">Sign out</button></dd></div>
       </dl>
     </header>
     <div class="yards" id="yards"></div>
@@ -650,6 +675,11 @@
           <div class="field-label"><label for="g-pass">Password</label></div>
           <input type="password" id="g-pass" autocomplete="current-password" required>
         </div>
+        <div id="email-field" hidden>
+          <div class="field-label"><label for="g-email">Email for order alerts, optional</label></div>
+          <input type="text" id="g-email" autocomplete="email" placeholder="you@yournursery.com">
+          <p class="hint">New orders get sent here so you do not have to keep checking the page.</p>
+        </div>
         <p class="gate-err" id="g-err"></p>
         <button type="submit" class="btn" id="g-go">Sign in</button>
         <button type="button" class="swap" id="g-swap">Have an invite code? Set up your login</button>
@@ -686,7 +716,8 @@
     <div class="banner">
       <strong>This is everything you have to do.</strong>
       <span>Keep the counts and prices honest, and mark orders staged. Cactus Warehouse sees your changes right away.</span>
-      <button type="button" class="btn ghost auto" id="signout" style="margin-left:auto">Sign out</button>
+      <button type="button" class="btn ghost auto" id="changepass" style="margin-left:auto">Change password</button>
+      <button type="button" class="btn ghost auto" id="signout">Sign out</button>
     </div>
 
     <div class="section-label"><span>Orders waiting</span></div>
@@ -750,8 +781,8 @@
         <p>Change a price here and it is what they see and pay from that moment. Anything left at zero stays hidden until you price it.</p>
       </div>
       <div>
-        <h3>Start over</h3>
-        <p>This is a test copy, so nothing here is real. <button type="button" class="btn ghost auto" id="reset" style="margin-top:6px">Reset the demo</button></p>
+        <h3>Saved as you go</h3>
+        <p>Every change saves on its own within a second or two. If your connection drops, a note appears and nothing is lost silently.</p>
       </div>
     </div>
   </div>
@@ -792,98 +823,151 @@ var PHOTOS = {
 
 var SIZES = ["2 in", "4 in", "6 in", "1 gal", "5 gal", "10 gal", "15 gal", "24 in box"];
 
-var SEED = {
-  session: null,
-  shopping: null,
-  owner: { user: "takashi", pass: "warehouse26" },
-  yards: [
-  {
-    id: "vc", code: "VALLEY-7K2M", name: "Valley Center Nursery", where: "Valley Center, CA",
-    sells: "2 inch starter plants, sold by the 64 count tray.",
-    unit: "tray", units: "trays", pack: 64, ready: true, account: null, orders: [],
-    items: [
-    { id: "haworthia", common: "Crowded Haworthia", latin: "Haworthia coarctata", photo: "haworthia",
-      sizes: [{ sid: "haworthia-a", size: "2 in", price: 35, qty: 4, pack: 64 }] },
-    { id: "shangrila", common: "Sedeveria 'Shangri La'", latin: "Sedeveria hybrid", photo: "shangrila",
-      sizes: [{ sid: "shangrila-a", size: "2 in", price: 35, qty: 4, pack: 64 }] },
-    { id: "atlantis", common: "Echeveria 'Atlantis'", latin: "Echeveria hybrid", photo: "atlantis",
-      sizes: [{ sid: "atlantis-a", size: "2 in", price: 35, qty: 6, pack: 64 }] },
-    { id: "butterfield", common: "Sedeveria 'Harry Butterfield'", latin: "Sedeveria hybrid", photo: "butterfield",
-      sizes: [{ sid: "butterfield-a", size: "2 in", price: 35, qty: 3, pack: 64 }] },
-    { id: "firestorm", common: "Firestorm Sedum", latin: "Sedum adolphi 'Firestorm'", photo: "firestorm",
-      sizes: [{ sid: "firestorm-a", size: "2 in", price: 35, qty: 3, pack: 64 }] },
-    { id: "coppertone", common: "Coppertone Stonecrop", latin: "Sedum nussbaumerianum", photo: "coppertone",
-      sizes: [{ sid: "coppertone-a", size: "2 in", price: 35, qty: 4, pack: 64 }] },
-    { id: "lemonball", common: "Lemon Ball Cactus", latin: "Parodia leninghausii", photo: "lemonball",
-      sizes: [{ sid: "lemonball-a", size: "2 in", price: 35, qty: 13, pack: 64 }] },
-    { id: "redpagoda", common: "Red Pagoda Succulent", latin: "Crassula rupestris 'High Voltage'", photo: "redpagoda",
-      sizes: [{ sid: "redpagoda-a", size: "2 in", price: 35, qty: 1, pack: 64 }] },
-    { id: "moonstone", common: "Moonstone Succulent", latin: "Pachyphytum bracteosum", photo: "moonstone",
-      sizes: [{ sid: "moonstone-a", size: "2 in", price: 35, qty: 2, pack: 64 }] },
-    { id: "redsky", common: "Echeveria 'Red Sky'", latin: "Echeveria hybrid", photo: "redsky",
-      sizes: [{ sid: "redsky-a", size: "2 in", price: 35, qty: 7, pack: 64 }] },
-    { id: "peanut", common: "Peanut Cactus", latin: "Echinopsis chamaecereus", photo: "peanut",
-      sizes: [{ sid: "peanut-a", size: "2 in", price: 35, qty: 1, pack: 64 }] },
-    { id: "bluebarrel", common: "Blue Barrel Cactus", latin: "Ferocactus glaucescens", photo: "bluebarrel",
-      sizes: [{ sid: "bluebarrel-a", size: "2 in", price: 35, qty: 2, pack: 64 }] },
-    ]
-  },
-  {
-    id: "pepe", code: "PEPE-9QX4", name: "Pepe Nursery", where: "Southern California",
-    sells: "Specimen cactus, agave and euphorbia, priced by the plant.",
-    unit: "plant", units: "plants", pack: 1, ready: true, account: null, orders: [],
-    items: [
-    { id: "P001", common: "Lady Slipper", latin: "Euphorbia lomelii", photo: null,
-      sizes: [{ sid: "P001-a", size: "10 gal", price: 27.5, qty: 6, pack: 1 }] },
-    { id: "P002", common: "Cow Horn Euphorbia", latin: "Euphorbia grandicornis", photo: null,
-      sizes: [{ sid: "P002-a", size: "10 gal", price: 27.5, qty: 4, pack: 1 }] },
-    { id: "P003", common: "Blue Fescue", latin: "Festuca glauca", photo: null,
-      sizes: [{ sid: "P003-a", size: "4 in", price: 6, qty: 40, pack: 1 }] },
-    { id: "P004", common: "Peruvian Old Man Cactus", latin: "Espostoa lanata", photo: "espostoa",
-      sizes: [{ sid: "P004-a", size: "4 in", price: 5, qty: 30, pack: 1 }] },
-    { id: "P005", common: "Peruvian Torch", latin: "Trichocereus peruvianus", photo: null,
-      sizes: [{ sid: "P005-a", size: "4 in", price: 5, qty: 24, pack: 1 }] },
-    { id: "P006", common: "Toothpick Cactus", latin: "Stetsonia coryne", photo: "stetsonia",
-      sizes: [{ sid: "P006-a", size: "4 in", price: 5, qty: 18, pack: 1 }] },
-    { id: "P007", common: "Saguaro del Monte", latin: "Neoraimondia herzogiana", photo: null,
-      sizes: [{ sid: "P007-a", size: "4 in", price: 10, qty: 12, pack: 1 }] },
-    { id: "P008", common: "Moroccan Mound", latin: "Euphorbia resinifera", photo: "resinifera",
-      sizes: [{ sid: "P008-a", size: "15 gal", price: 35, qty: 3, pack: 1 }] },
-    { id: "P009", common: "Cobweb Hens and Chicks", latin: "Sempervivum arachnoideum", photo: "sempervivum",
-      sizes: [{ sid: "P009-a", size: "4 in", price: 7, qty: 24, pack: 1 }] },
-    { id: "P010", common: "Madagascar Palm", latin: "Pachypodium lamerei", photo: "pachypodium",
-      sizes: [{ sid: "P010-a", size: "4 in", price: 5, qty: 20, pack: 1 }] },
-    { id: "P011", common: "Mother of Hundreds", latin: "Mammillaria compressa", photo: "mammillaria",
-      sizes: [{ sid: "P011-a", size: "10 gal", price: 29.5, qty: 5, pack: 1 }] },
-    { id: "P012", common: "Agave 'Blue Glow'", latin: "Agave hybrid", photo: "blueglow",
-      sizes: [{ sid: "P012-a", size: "5 gal", price: 25, qty: 10, pack: 1 }] },
-    { id: "P013", common: "Artichoke Agave", latin: "Agave parryi", photo: "parryi",
-      sizes: [{ sid: "P013-a", size: "5 gal", price: 25, qty: 8, pack: 1 }] },
-    { id: "P014", common: "Mangave 'Bloodspot'", latin: "Manfreda maculosa x Agave macroacantha", photo: "mangave",
-      sizes: [{ sid: "P014-a", size: "5 gal", price: 25, qty: 6, pack: 1 }] },
-    { id: "P015", common: "Cushion Plant", latin: "Deuterocohnia brevifolia", photo: "deuterocohnia",
-      sizes: [{ sid: "P015-a", size: "6 in", price: 50, qty: 4, pack: 1 }] },
-    { id: "P016", common: "Blue Euphorbia", latin: "Euphorbia coerulescens", photo: "coerulescens",
-      sizes: [{ sid: "P016-a", size: "", price: 0, qty: 0, pack: 1 }] },
-    ]
-  }
-  ]
+var API_URL = "https://script.google.com/macros/s/AKfycbxuKQw2AhrCgH5Y-SUVT4TuNxSKEgtORRK_DMubLaxPYOCFxrQwY7Qjyeps4eO62YyQ/exec";
+var EMAIL = "info@cactuswarehouse.com";
+var KEY = "cw-portal-live-v1";
+
+// Session and view state persist locally; all real data lives on the server.
+var S = { session: null, shopping: null, yards: [] };
+var picked = {}, gateMode = "in";
+
+function loadLocal() {
+  try {
+    var raw = localStorage.getItem(KEY);
+    if (raw) {
+      var v = JSON.parse(raw);
+      S.session = v.session || null;
+      S.shopping = v.shopping || null;
+    }
+  } catch (e) {}
+}
+function saveLocal() {
+  try { localStorage.setItem(KEY, JSON.stringify({ session: S.session, shopping: S.shopping })); } catch (e) {}
+}
+function save() { saveLocal(); return true; }
+
+/* ---------------- talking to the server ---------------- */
+
+var busyCount = 0;
+function busy(d) {
+  busyCount = Math.max(0, busyCount + d);
+  document.body.classList.toggle("busy", busyCount > 0);
+}
+var toastTimer = null;
+function toast(msg) {
+  var t = document.getElementById("toast");
+  t.textContent = msg;
+  t.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(function () { t.classList.remove("show"); }, 5000);
+}
+
+function api(body) {
+  var req = {};
+  for (var k in body) req[k] = body[k];
+  if (S.session && S.session.token && !req.token) req.token = S.session.token;
+  busy(1);
+  return fetch(API_URL, {
+    method: "POST",
+    headers: { "Content-Type": "text/plain" },
+    body: JSON.stringify(req)
+  }).then(function (r) { return r.json(); }).then(function (j) {
+    busy(-1);
+    if (j && j.error === "Sign in again.") {
+      S.session = null; S.shopping = null; saveLocal();
+      renderGate(); setView("gate");
+      toast("Your session expired. Sign in again.");
+      throw new Error("session");
+    }
+    return j;
+  }, function (e) {
+    busy(-1);
+    toast("Could not reach the server. Check your connection and try again.");
+    throw e;
+  });
+}
+
+/* ---------------- shaping server data for the renderers ---------------- */
+
+// Photos for the seeded catalogue ship with the page; grower uploads override them.
+var ITEM_PHOTO = {
+  P004: "espostoa", P006: "stetsonia", P008: "resinifera", P009: "sempervivum",
+  P010: "pachypodium", P011: "mammillaria", P012: "blueglow", P013: "parryi",
+  P014: "mangave", P015: "deuterocohnia", P016: "coerulescens"
 };
 
-var KEY = "cw-nursery-portal-v1";
-var EMAIL = "info@cactuswarehouse.com";
-var S, picked = {}, gateMode = "in";
-
-function load() {
-  try { var raw = localStorage.getItem(KEY); if (raw) { S = JSON.parse(raw); return; } } catch (e) {}
-  S = JSON.parse(JSON.stringify(SEED));
+function adaptYard(g) {
+  var byItem = {}, items = [];
+  (g.listings || []).forEach(function (l) {
+    var it = byItem[l.itemId];
+    if (!it) {
+      it = byItem[l.itemId] = {
+        id: l.itemId, common: l.common, latin: l.latin,
+        photo: ITEM_PHOTO[l.itemId] || l.itemId, photoData: null, sizes: []
+      };
+      items.push(it);
+    }
+    if (l.photo && !it.photoData) it.photoData = l.photo;
+    it.sizes.push({ sid: l.sid, size: l.size, pack: Number(l.pack) || 1,
+                    price: Number(l.price) || 0, qty: Number(l.qty) || 0 });
+  });
+  var pack = Number(g.defaultPack) || 1;
+  return {
+    id: g.id, code: g.code || "", name: g.name, where: g.where, sells: g.sells,
+    pack: pack, unit: pack > 1 ? "tray" : "plant", units: pack > 1 ? "trays" : "plants",
+    ready: !!g.ready, hasLogin: !!g.hasLogin, account: g.hasLogin ? {} : null,
+    items: items,
+    orders: (g.orders || []).map(function (o) {
+      return { ref: o.ref, mode: o.mode, date: o.date, addr: o.addr, note: o.note,
+               staged: o.status === "staged", lines: o.lines || [] };
+    })
+  };
 }
-function save() {
-  try { localStorage.setItem(KEY, JSON.stringify(S)); return true; }
-  catch (e) { return false; }
+
+function refreshPortal() {
+  return api({ action: "portal" }).then(function (j) {
+    if (j.error) { toast(j.error); throw new Error(j.error); }
+    S.yards = j.growers.map(adaptYard);
+    return j;
+  });
+}
+function refreshBench() {
+  return api({ action: "bench" }).then(function (j) {
+    if (j.error) { toast(j.error); throw new Error(j.error); }
+    var g = j.grower; g.listings = j.listings; g.orders = j.orders; g.hasLogin = true;
+    S.yards = [adaptYard(g)];
+    return j;
+  });
 }
 
-// Shrink to a 400px square before storing, or photos blow the browser's storage limit.
+// Edits batch up per listing for about half a second, then save once.
+var pendingEdits = {};
+function queueListing(sid, patch) {
+  var p = pendingEdits[sid] || (pendingEdits[sid] = { patch: {} });
+  for (var k in patch) p.patch[k] = patch[k];
+  clearTimeout(p.t);
+  p.t = setTimeout(function () {
+    var send = p.patch; delete pendingEdits[sid];
+    var listing = { sid: sid };
+    for (var k in send) listing[k] = send[k];
+    api({ action: "upsertListing", listing: listing }).then(function (j) {
+      if (j.error) { toast(j.error); refreshBench().then(renderBench); }
+    }).catch(function () {});
+  }, 600);
+}
+var pendingFills = {};
+function queueFill(ref, sid, filled) {
+  var key = ref + "|" + sid;
+  clearTimeout(pendingFills[key]);
+  pendingFills[key] = setTimeout(function () {
+    delete pendingFills[key];
+    api({ action: "fillLine", ref: ref, sid: sid, filled: filled }).then(function (j) {
+      if (j.error) { toast(j.error); refreshBench().then(renderBench); }
+    }).catch(function () {});
+  }, 600);
+}
+
+// Shrink to a 400px square before storing, or photos blow the upload size.
 function readPhoto(file, cb) {
   if (!file || !/^image\//.test(file.type)) { cb(null, "That file is not an image."); return; }
   var fr = new FileReader();
@@ -903,21 +987,18 @@ function readPhoto(file, cb) {
   };
   fr.readAsDataURL(file);
 }
+
 function yard(id) { return S.yards.filter(function (y) { return y.id === id; })[0]; }
 function shopping() { return yard(S.shopping); }
 function isOwner() { return !!S.session && S.session.kind === "owner"; }
-function sessionYard() { return S.session && S.session.kind === "grower" ? yard(S.session.yard) : null; }
-function makeCode(name) {
-  var stem = (name.toUpperCase().replace(/[^A-Z]/g, "").slice(0, 6) || "GROWER");
-  var tail = "";
-  for (var i = 0; i < 4; i++) tail += "ABCDEFGHJKLMNPQRSTUVWXYZ23456789".charAt(Math.floor(Math.random() * 32));
-  return stem + "-" + tail;
+function sessionYard() {
+  return S.session && S.session.kind === "grower" ? S.yards[0] || null : null;
 }
 function inviteLink(code) {
   return location.origin + location.pathname + "?invite=" + code;
 }
 function landing() {
-  if (isOwner()) return S.shopping ? "shop" : "portal";
+  if (isOwner()) return S.shopping && shopping() ? "shop" : "portal";
   var y = sessionYard();
   if (y) return y.ready ? "bench" : "setup";
   return "gate";
@@ -978,7 +1059,6 @@ function findSize(y, sid) {
   }
   return null;
 }
-function newSid(it) { return it.id + "-" + Math.random().toString(36).slice(2, 7); }
 function sizeOptions(cur) {
   var opts = SIZES.slice();
   if (cur && opts.indexOf(cur) < 0) opts.unshift(cur);
@@ -989,7 +1069,9 @@ function sizeOptions(cur) {
 
 function prettyDate(v) {
   if (!v) return "date not set";
-  return new Date(v + "T12:00:00").toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" });
+  var d10 = String(v).slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(d10)) return "date not set";
+  return new Date(d10 + "T12:00:00").toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" });
 }
 var isoDay = function (d) {
   return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
@@ -1039,19 +1121,17 @@ document.getElementById("invite-form").addEventListener("submit", function (e) {
   e.preventDefault();
   var name = document.getElementById("invite-name").value.trim();
   if (!name) return;
-  var code = makeCode(name);
-  S.yards.push({
-    id: "y" + Date.now(), code: code, name: name, where: "",
-    sells: "", unit: "plant", units: "plants", pack: 1,
-    ready: false, account: null, orders: [], items: []
-  });
-  save();
-  document.getElementById("invite-name").value = "";
-  document.getElementById("invite-link").value = inviteLink(code);
-  document.getElementById("invite-hint").textContent =
-    name + " sets up their own list when they open it. The link works once.";
-  document.getElementById("invite-out").hidden = false;
-  renderPortal();
+  api({ action: "addGrower", name: name }).then(function (j) {
+    if (j.error) { toast(j.error); return; }
+    S.yards.push(adaptYard({ id: j.id, code: j.code, name: name, where: "", sells: "",
+      defaultPack: 1, ready: false, hasLogin: false, listings: [], orders: [] }));
+    document.getElementById("invite-name").value = "";
+    document.getElementById("invite-link").value = inviteLink(j.code);
+    document.getElementById("invite-hint").textContent =
+      name + " sets up their own list when they open it. The link works once.";
+    document.getElementById("invite-out").hidden = false;
+    renderPortal();
+  }).catch(function () {});
 });
 
 document.getElementById("invite-copy").addEventListener("click", function () {
@@ -1241,22 +1321,33 @@ document.getElementById("copy").addEventListener("click", function () {
   } else { note.textContent = "Select the text above to copy."; }
 });
 
+var sendBusy = false;
 document.getElementById("send").addEventListener("click", function () {
+  if (sendBusy) return;
   var y = shopping(), lines = currentLines();
-  if (!lines.length) return;
-  y.orders.unshift({
-    ref: y.id.toUpperCase() + "-" + String(Date.now()).slice(-5),
-    mode: mode(), date: dateEl.value,
-    addr: document.getElementById("addr").value.trim(),
-    note: document.getElementById("notes").value.trim(),
-    lines: lines, staged: false
-  });
-  save();
-  picked = {};
-  document.getElementById("notes").value = "";
-  renderShop(); renderBench(); renderPortal();
-  document.getElementById("sent-note").textContent = "Sent to " + y.name + ", copy to " + EMAIL + ".";
-  setTimeout(function () { document.getElementById("sent-note").textContent = ""; }, 6000);
+  if (!y || !lines.length) return;
+  sendBusy = true;
+  document.getElementById("send").disabled = true;
+  api({ action: "placeOrder", growerId: y.id, mode: mode(),
+        date: dateEl.value, addr: document.getElementById("addr").value.trim(),
+        note: document.getElementById("notes").value.trim(),
+        lines: lines.map(function (l) { return { sid: l.sid, qty: l.qty }; }) })
+    .then(function (j) {
+      sendBusy = false;
+      if (j.error) {
+        toast(j.error);
+        refreshPortal().then(function () { renderShop(); });
+        return;
+      }
+      picked = {};
+      document.getElementById("notes").value = "";
+      refreshPortal().then(function () {
+        renderShop(); renderPortal();
+        document.getElementById("sent-note").textContent =
+          "Sent to " + y.name + ". A copy went to " + EMAIL + ".";
+        setTimeout(function () { document.getElementById("sent-note").textContent = ""; }, 6000);
+      });
+    }).catch(function () { sendBusy = false; renderShop(); });
 });
 
 function renderHistory() {
@@ -1299,28 +1390,25 @@ document.getElementById("back-portal").addEventListener("click", function () {
 
 /* ================= GATE ================= */
 
-var pendingInvite = null;
+var pendingInvite = null;   // { code, name } once the server recognises the link
 
 function readInvite() {
   var m = location.search.match(/[?&]invite=([^&]+)/);
-  if (!m) return;
+  if (!m) return Promise.resolve();
   var code = decodeURIComponent(m[1]).toUpperCase();
-  var y = S.yards.filter(function (n) { return n.code === code; })[0];
-  var box = document.getElementById("g-invited");
-  if (!y) {
-    box.innerHTML = "That invite link is not one we recognise. Check with Cactus Warehouse for a new one.";
+  return api({ action: "inviteName", code: code }).then(function (j) {
+    var box = document.getElementById("g-invited");
+    if (j.error) { box.innerHTML = esc(j.error) + " Check with Cactus Warehouse for a new one."; box.hidden = false; return; }
+    if (j.used) {
+      box.innerHTML = "<b>" + esc(j.name) + "</b> already has a login. Sign in below.";
+      box.hidden = false; return;
+    }
+    pendingInvite = { code: code, name: j.name };
+    box.innerHTML = "Welcome. You are setting up the page for <b>" + esc(j.name) + "</b>.";
     box.hidden = false;
-    return;
-  }
-  if (y.account) {
-    box.innerHTML = "<b>" + esc(y.name) + "</b> already has a login. Sign in below.";
-    box.hidden = false;
-    return;
-  }
-  pendingInvite = y.id;
-  box.innerHTML = "Welcome. You are setting up the page for <b>" + esc(y.name) + "</b>.";
-  box.hidden = false;
-  gateMode = "up";
+    gateMode = "up";
+    setGateMode(gateMode);
+  }).catch(function () {});
 }
 
 function renderGate() { setGateMode(gateMode); }
@@ -1329,6 +1417,7 @@ function setGateMode(m) {
   gateMode = m;
   var making = m === "up";
   document.getElementById("code-field").hidden = !making || !!pendingInvite;
+  document.getElementById("email-field").hidden = !making;
   document.getElementById("g-title").textContent = making ? "Set up your login" : "Sign in";
   document.getElementById("g-blurb").textContent = !making
     ? "Sign in to your account."
@@ -1347,62 +1436,81 @@ document.getElementById("g-swap").addEventListener("click", function () {
 });
 
 function clearGate() {
-  ["g-user", "g-pass", "g-code"].forEach(function (id) { document.getElementById(id).value = ""; });
+  ["g-user", "g-pass", "g-code", "g-email"].forEach(function (id) {
+    var el = document.getElementById(id); if (el) el.value = "";
+  });
   document.getElementById("g-err").textContent = "";
 }
 
+var gateBusy = false;
 document.getElementById("gate-form").addEventListener("submit", function (e) {
   e.preventDefault();
+  if (gateBusy) return;
   var u = document.getElementById("g-user").value.trim();
   var p = document.getElementById("g-pass").value;
   var err = document.getElementById("g-err");
   if (!u || !p) { err.textContent = "Fill in both fields."; return; }
+  err.textContent = "";
+  gateBusy = true;
+  document.getElementById("g-go").disabled = true;
+  var done = function () { gateBusy = false; document.getElementById("g-go").disabled = false; };
 
   if (gateMode === "up") {
-    var y = pendingInvite
-      ? yard(pendingInvite)
-      : S.yards.filter(function (n) { return n.code === document.getElementById("g-code").value.trim().toUpperCase(); })[0];
-    if (!y) { err.textContent = "That invite code is not one of ours."; return; }
-    if (y.account) { err.textContent = "That code has already been used. Sign in instead."; return; }
-    if (p.length < 4) { err.textContent = "Use at least 4 characters."; return; }
-    if (taken(u)) { err.textContent = "That username is taken. Pick another."; return; }
-    y.account = { user: u, pass: p };
-    S.session = { kind: "grower", yard: y.id };
-    pendingInvite = null;
-    document.getElementById("g-invited").hidden = true;
-    save(); clearGate();
-    if (!y.ready) { startSetup(); return; }
-    renderBench(); setView("bench");
+    var code = pendingInvite ? pendingInvite.code : document.getElementById("g-code").value.trim().toUpperCase();
+    api({ action: "setup", code: code, user: u, pass: p,
+          email: document.getElementById("g-email").value.trim() })
+      .then(function (j) {
+        done();
+        if (j.error) { err.textContent = j.error; return; }
+        S.session = { token: j.token, kind: "grower" };
+        pendingInvite = null;
+        document.getElementById("g-invited").hidden = true;
+        saveLocal(); clearGate();
+        S.yards = [adaptYard({ id: j.grower.id, name: j.grower.name, where: j.grower.where,
+          sells: j.grower.sells, defaultPack: j.grower.defaultPack, ready: j.grower.ready,
+          hasLogin: true, listings: [], orders: [] })];
+        if (!S.yards[0].ready) { startSetup(); return; }
+        refreshBench().then(function () { renderBench(); setView("bench"); });
+      }).catch(done);
     return;
   }
 
-  if (S.owner.user === u && S.owner.pass === p) {
-    S.session = { kind: "owner" };
-    save(); clearGate(); renderPortal(); setView(S.shopping ? "shop" : "portal");
-    return;
-  }
-  var mine = S.yards.filter(function (n) { return n.account && n.account.user === u && n.account.pass === p; })[0];
-  if (mine) {
-    S.session = { kind: "grower", yard: mine.id };
-    save(); clearGate();
-    if (!mine.ready) { startSetup(); return; }
-    renderBench(); setView("bench");
-    return;
-  }
-  err.textContent = "That username and password do not match.";
+  api({ action: "login", user: u, pass: p }).then(function (j) {
+    done();
+    if (j.error) { err.textContent = j.error; return; }
+    S.session = { token: j.token, kind: j.kind };
+    saveLocal(); clearGate();
+    if (j.kind === "owner") {
+      refreshPortal().then(function () { renderPortal(); setView(landing()); if (S.shopping && shopping()) renderShop(); });
+    } else {
+      refreshBench().then(function () {
+        if (!S.yards[0].ready) { startSetup(); return; }
+        renderBench(); setView("bench");
+      });
+    }
+  }).catch(done);
 });
 
-function taken(u) {
-  if (S.owner.user.toLowerCase() === u.toLowerCase()) return true;
-  return S.yards.some(function (n) { return n.account && n.account.user.toLowerCase() === u.toLowerCase(); });
-}
-
 function signOut() {
-  S.session = null; S.shopping = null; picked = {};
-  save(); gateMode = "in"; renderGate(); clearGate(); setView("gate");
+  api({ action: "logout" }).catch(function () {});
+  S.session = null; S.shopping = null; S.yards = [];
+  picked = {}; saveLocal();
+  gateMode = "in"; pendingInvite = null;
+  renderGate(); clearGate(); setView("gate");
 }
 document.getElementById("signout").addEventListener("click", signOut);
 document.getElementById("signout-owner").addEventListener("click", signOut);
+
+function changePass() {
+  var p = prompt("New password, at least 4 characters:");
+  if (p === null) return;
+  if (p.length < 4) { toast("Use at least 4 characters."); return; }
+  api({ action: "changePass", newPass: p }).then(function (j) {
+    toast(j.error ? j.error : "Password changed.");
+  }).catch(function () {});
+}
+document.getElementById("changepass").addEventListener("click", changePass);
+document.getElementById("changepass-owner").addEventListener("click", changePass);
 
 /* ================= SETUP WIZARD ================= */
 
@@ -1564,26 +1672,31 @@ document.getElementById("w-next").addEventListener("click", function () {
   finishSetup();
 });
 
+var finishBusy = false;
 function finishSetup() {
+  if (finishBusy) return;
   var y = sessionYard();
   var good = W.draft.rows.filter(function (r) { return r.common.trim() && Number(r.price) > 0 && Number(r.qty) > 0; });
   if (!good.length) { W.step = 2; renderSetup(); return; }
 
-  y.where = W.draft.where;
-  y.sells = W.draft.sells;
-  y.unit = W.draft.unit;
-  y.units = W.draft.unit === "tray" ? "trays" : "plants";
-  y.pack = W.draft.pack;
-  good.forEach(function (r, i) {
-    var id = "n" + Date.now() + i;
-    y.items.push({
-      id: id, common: r.common.trim(), latin: "", photo: null,
-      sizes: [{ sid: id + "-a", size: r.size, price: Number(r.price), qty: Number(r.qty), pack: r.pack || 1 }]
+  finishBusy = true;
+  document.getElementById("w-next").disabled = true;
+  api({ action: "saveProfile",
+        where: W.draft.where, sells: W.draft.sells,
+        defaultPack: W.draft.unit === "tray" ? W.draft.pack : 1,
+        rows: good.map(function (r) {
+          return { common: r.common.trim(), size: r.size, price: Number(r.price),
+                   qty: Math.floor(Number(r.qty)), pack: r.pack || 1 };
+        }) })
+    .then(function (j) {
+      finishBusy = false;
+      document.getElementById("w-next").disabled = false;
+      if (j.error) { toast(j.error); return; }
+      refreshBench().then(function () { renderBench(); setView("bench"); });
+    }).catch(function () {
+      finishBusy = false;
+      document.getElementById("w-next").disabled = false;
     });
-  });
-  y.ready = true;
-  save();
-  renderBench(); renderPortal(); setView("bench");
 }
 
 /* ================= BENCH ================= */
@@ -1655,7 +1768,6 @@ function renderBench() {
         (o.staged
           ? '<span class="chip ' + (short ? "low" : "deep") + '">' + (short ? "Staged, short" : "Staged") + '</span>'
           : '<button type="button" class="btn auto" data-stage="' + idx + '">Mark staged</button>') +
-        '<button type="button" class="btn ghost auto" data-drop="' + idx + '">Remove</button>' +
       '</div>';
     orderList.appendChild(el);
   });
@@ -1663,41 +1775,32 @@ function renderBench() {
   orderList.querySelectorAll("[data-fillnum]").forEach(function (inp) {
     inp.addEventListener("focus", function () { inp.select(); });
     inp.addEventListener("change", function () {
-      var l = y.orders[Number(inp.dataset.fillnum)].lines[Number(inp.dataset.li)];
+      var o = y.orders[Number(inp.dataset.fillnum)];
+      var l = o.lines[Number(inp.dataset.li)];
       l.filled = Math.max(0, Math.min(l.qty, Math.floor(Number(inp.value) || 0)));
-      save(); renderBench(); renderHistory();
+      queueFill(o.ref, l.sid, l.filled);
+      renderBench();
     });
   });
   orderList.querySelectorAll("[data-fill]").forEach(function (b) {
     b.addEventListener("click", function () {
-      var l = y.orders[Number(b.dataset.fill)].lines[Number(b.dataset.li)];
+      var o = y.orders[Number(b.dataset.fill)];
+      var l = o.lines[Number(b.dataset.li)];
       l.filled = Math.max(0, Math.min(l.qty, l.filled + Number(b.dataset.d)));
-      save(); renderBench(); renderHistory();
+      queueFill(o.ref, l.sid, l.filled);
+      renderBench();
     });
   });
   orderList.querySelectorAll("[data-stage]").forEach(function (b) {
     b.addEventListener("click", function () {
       var o = y.orders[Number(b.dataset.stage)];
-      o.staged = true;
-      o.lines.forEach(function (l) {
-        var z = findSize(y, l.sid);
-        if (z) z.qty = Math.max(0, z.qty - l.filled);
-      });
-      save(); renderBench(); renderShop(); renderPortal();
+      b.disabled = true;
+      api({ action: "stageOrder", ref: o.ref }).then(function (j) {
+        if (j.error) { toast(j.error); b.disabled = false; return; }
+        refreshBench().then(function () { renderBench(); });
+      }).catch(function () { b.disabled = false; });
     });
   });
-  orderList.querySelectorAll("[data-drop]").forEach(function (b) {
-    b.addEventListener("click", function () {
-      y.orders.splice(Number(b.dataset.drop), 1);
-      save(); renderBench(); renderShop(); renderPortal();
-    });
-  });
-
-  var needy = 0;
-  y.items.forEach(function (it) { it.sizes.forEach(function (z) { if (z.price <= 0) needy++; }); });
-  document.getElementById("b-note").textContent = needy
-    ? needy + (needy === 1 ? " size needs a price" : " sizes need a price") : "";
-
   benchList.innerHTML = "";
   y.items.forEach(function (it, i) {
     var live = liveSizes(it).length;
@@ -1742,7 +1845,8 @@ function renderBench() {
     b.addEventListener("click", function () {
       var z = y.items[Number(b.dataset.qty)].sizes[Number(b.dataset.zi)];
       z.qty = Math.max(0, z.qty + Number(b.dataset.d));
-      save(); renderBench(); renderShop(); renderPortal();
+      queueListing(z.sid, { qty: z.qty });
+      renderBench();
     });
   });
   benchList.querySelectorAll("[data-count]").forEach(function (inp) {
@@ -1750,7 +1854,8 @@ function renderBench() {
     inp.addEventListener("change", function () {
       var z = y.items[Number(inp.dataset.count)].sizes[Number(inp.dataset.zi)];
       z.qty = Math.max(0, Math.floor(Number(inp.value) || 0));
-      save(); renderBench(); renderShop(); renderPortal();
+      queueListing(z.sid, { qty: z.qty });
+      renderBench();
     });
   });
   benchList.querySelectorAll("[data-pic]").forEach(function (b) {
@@ -1760,16 +1865,11 @@ function renderBench() {
       f.type = "file"; f.accept = "image/*";
       f.addEventListener("change", function () {
         readPhoto(f.files[0], function (data, err) {
-          if (err || !data) { flashPhoto(err || "Could not add that photo."); return; }
-          var before = it.photoData;
+          if (err || !data) { toast(err || "Could not add that photo."); return; }
           it.photoData = data;
-          if (!save()) {
-            it.photoData = before; save();
-            flashPhoto("No room left for more photos. Remove one and try again.");
-            return;
-          }
-          flashPhoto("Photo added.");
-          renderBench(); renderShop(); renderPortal();
+          queueListing(it.sizes[0].sid, { photo: data });
+          toast("Photo added.");
+          renderBench();
         });
       });
       f.click();
@@ -1779,7 +1879,8 @@ function renderBench() {
     inp.addEventListener("change", function () {
       var z = y.items[Number(inp.dataset.price)].sizes[Number(inp.dataset.zi)];
       z.price = Math.max(0, Number(inp.value) || 0);
-      save(); renderBench(); renderShop(); renderPortal();
+      queueListing(z.sid, { price: z.price });
+      renderBench();
     });
   });
   benchList.querySelectorAll("[data-size]").forEach(function (sel) {
@@ -1794,7 +1895,8 @@ function renderBench() {
           if (settled) return;
           settled = true;
           z.size = inp.value.trim();
-          save(); renderBench(); renderShop(); renderPortal();
+          queueListing(z.sid, { size: z.size });
+          renderBench();
         };
         inp.addEventListener("change", done);
         inp.addEventListener("blur", done);
@@ -1804,7 +1906,8 @@ function renderBench() {
         return;
       }
       z.size = sel.value;
-      save(); renderBench(); renderShop(); renderPortal();
+      queueListing(z.sid, { size: z.size });
+      renderBench();
     });
   });
   benchList.querySelectorAll("[data-pack]").forEach(function (sel) {
@@ -1817,14 +1920,20 @@ function renderBench() {
       } else {
         z.pack = Math.max(1, Number(sel.value) || 1);
       }
-      save(); renderBench(); renderShop(); renderPortal();
+      queueListing(z.sid, { pack: z.pack });
+      renderBench();
     });
   });
   benchList.querySelectorAll("[data-rm]").forEach(function (b) {
     b.addEventListener("click", function () {
       var it = y.items[Number(b.dataset.rm)];
-      if (it.sizes.length > 1) it.sizes.splice(Number(b.dataset.zi), 1);
-      save(); renderBench(); renderShop(); renderPortal();
+      if (it.sizes.length < 2) return;
+      var z = it.sizes[Number(b.dataset.zi)];
+      it.sizes.splice(Number(b.dataset.zi), 1);
+      renderBench();
+      api({ action: "deleteListing", sid: z.sid }).then(function (j) {
+        if (j.error) { toast(j.error); refreshBench().then(renderBench); }
+      }).catch(function () {});
     });
   });
   benchList.querySelectorAll("[data-add]").forEach(function (b) {
@@ -1832,8 +1941,16 @@ function renderBench() {
       var it = y.items[Number(b.dataset.add)];
       var used = it.sizes.map(function (z) { return z.size; });
       var next = SIZES.filter(function (o) { return used.indexOf(o) < 0; })[0] || "";
-      it.sizes.push({ sid: newSid(it), size: next, price: 0, qty: 0, pack: y.pack > 1 ? y.pack : 1 });
-      save(); renderBench(); renderShop(); renderPortal();
+      var pack = y.pack > 1 ? y.pack : 1;
+      b.disabled = true;
+      api({ action: "upsertListing", listing: { itemId: it.id, common: it.common, latin: it.latin,
+            size: next, pack: pack, price: 0, qty: 0 } })
+        .then(function (j) {
+          b.disabled = false;
+          if (j.error) { toast(j.error); return; }
+          it.sizes.push({ sid: j.sid, size: next, price: 0, qty: 0, pack: pack });
+          renderBench();
+        }).catch(function () { b.disabled = false; });
     });
   });
 }
@@ -1905,58 +2022,72 @@ document.getElementById("addform").addEventListener("submit", function (e) {
 
   var sel = document.getElementById("a-size").value;
   var size = sel === "__other" ? document.getElementById("a-size-custom").value.trim() : sel;
-  var id = "x" + Date.now();
 
-  y.items.push({
-    id: id,
+  var listing = {
     common: name,
     latin: document.getElementById("a-latin").value.trim(),
-    photo: null,
-    photoData: newPhoto,
-    sizes: [{
-      sid: id + "-a", size: size,
-      price: Math.max(0, Number(document.getElementById("a-price").value) || 0),
-      qty: Math.max(0, Math.floor(Number(document.getElementById("a-qty").value) || 0)),
-      pack: Math.max(1, Number(document.getElementById("a-sold").value) || 1)
-    }]
-  });
-
-  if (!save()) {
-    y.items.pop(); save();
-    flashPhoto("No room left for more photos. Add the plant without one, or remove a photo elsewhere.");
-    return;
-  }
-  resetAddForm();
-  renderBench(); renderShop(); renderPortal();
+    size: size,
+    price: Math.max(0, Number(document.getElementById("a-price").value) || 0),
+    qty: Math.max(0, Math.floor(Number(document.getElementById("a-qty").value) || 0)),
+    pack: Math.max(1, Number(document.getElementById("a-sold").value) || 1),
+    photo: newPhoto || ""
+  };
+  var btn = document.querySelector("#addform button[type=submit]");
+  btn.disabled = true;
+  api({ action: "upsertListing", listing: listing }).then(function (j) {
+    btn.disabled = false;
+    if (j.error) { flashPhoto(j.error); return; }
+    y.items.push({
+      id: j.itemId, common: listing.common, latin: listing.latin,
+      photo: null, photoData: newPhoto,
+      sizes: [{ sid: j.sid, size: listing.size, price: listing.price, qty: listing.qty, pack: listing.pack }]
+    });
+    resetAddForm();
+    renderBench();
+  }).catch(function () { btn.disabled = false; });
 });
 
-document.getElementById("reset").addEventListener("click", function () {
-  S = JSON.parse(JSON.stringify(SEED));
-  picked = {}; gateMode = "in";
-  save(); renderGate(); clearGate(); setView("gate");
-});
 
 /* ================= ROUTING ================= */
 
 var VIEWS = { portal: "view-portal", shop: "view-shop", gate: "view-gate", bench: "view-bench", setup: "view-setup" };
 
 function setView(v) {
-  // a grower can only ever be on the bench; the owner can never be on the bench
   if ((v === "portal" || v === "shop") && !isOwner()) v = landing();
   if ((v === "bench" || v === "setup") && !sessionYard()) v = landing();
   Object.keys(VIEWS).forEach(function (k) { document.getElementById(VIEWS[k]).hidden = k !== v; });
-  document.body.className = v === "shop" ? "shopping" : "";
+  document.body.className = document.body.className.replace(/\bshopping\b/, "").trim();
+  if (v === "shop") document.body.classList.add("shopping");
   window.scrollTo(0, 0);
 }
 
-load();
-if (!S.owner) S.owner = JSON.parse(JSON.stringify(SEED.owner));
-readInvite();
-renderGate();
-if (isOwner()) renderPortal();
-if (isOwner() && S.shopping) renderShop();
-if (sessionYard() && sessionYard().ready) renderBench();
-if (sessionYard() && !sessionYard().ready) startSetup();
-// an unused invite link always lands on the gate, whoever is holding it
-setView(pendingInvite ? "gate" : landing());
+function boot() {
+  loadLocal();
+  var invited = /[?&]invite=/.test(location.search);
+  if (!S.session) {
+    readInvite().then(function () { renderGate(); setView("gate"); hideSplash(); });
+    return;
+  }
+  var hydrate = S.session.kind === "owner"
+    ? refreshPortal().then(function () {
+        renderPortal();
+        if (S.shopping && shopping()) renderShop();
+        setView(landing());
+      })
+    : refreshBench().then(function () {
+        if (!S.yards[0].ready) { startSetup(); }
+        else { renderBench(); setView("bench"); }
+      });
+  hydrate.then(hideSplash, function () {
+    // Session no longer valid or server unreachable; the api() handler
+    // already routed to the gate if the session died.
+    if (invited) readInvite();
+    renderGate(); setView("gate"); hideSplash();
+  });
+}
+function hideSplash() {
+  var sp = document.getElementById("splash");
+  if (sp) sp.hidden = true;
+}
+boot();
 </script>
