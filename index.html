@@ -171,7 +171,7 @@
   }
 
   .bsizes { display: flex; flex-direction: column; gap: 7px; margin-top: 9px; }
-  .bsize { display: grid; grid-template-columns: minmax(96px, 132px) 88px auto 32px; gap: 8px; align-items: center; }
+  .bsize { display: grid; grid-template-columns: minmax(88px, 120px) minmax(96px, 132px) 88px auto 32px; gap: 8px; align-items: center; }
   .bsize select, .bsize input[type="text"] {
     width: 100%; padding: 7px 8px; border: 1px solid var(--line-strong); border-radius: 3px;
     background: var(--ground); color: var(--ink); font-family: var(--mono); font-size: 12.5px;
@@ -189,8 +189,9 @@
   }
   .addsize:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   @media (max-width: 560px) {
-    .bsize { grid-template-columns: minmax(0, 1fr) 88px; grid-template-areas: "size price" "qty drop"; }
-    .bsize select, .bsize input[type="text"] { grid-area: size; }
+    .bsize { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-areas: "size sold" "price price" "qty drop"; }
+    .bsize select[data-size], .bsize input[type="text"] { grid-area: size; }
+    .bsize select[data-pack] { grid-area: sold; }
     .bsize .priced { grid-area: price; }
     .bsize .stepper { grid-area: qty; }
     .bsize .drop { grid-area: drop; justify-self: end; }
@@ -469,7 +470,7 @@
   .picks small { display: block; color: var(--ink-3); font-size: 12.5px; margin-top: 2px; }
 
   .plantrow {
-    display: grid; grid-template-columns: minmax(0,2fr) 100px 90px 78px 30px;
+    display: grid; grid-template-columns: minmax(0,2fr) 96px 104px 84px 74px 30px;
     gap: 8px; align-items: end; margin-bottom: 10px;
   }
   .plantrow input, .plantrow select { padding: 8px 9px; font-size: 13.5px; }
@@ -716,7 +717,11 @@
             <input type="text" id="a-size-custom" placeholder="Type the size" hidden>
           </div>
           <div>
-            <div class="field-label"><label for="a-price">Price each</label></div>
+            <div class="field-label"><label for="a-sold">Sold as</label></div>
+            <select id="a-sold"></select>
+          </div>
+          <div>
+            <div class="field-label"><label for="a-price" id="a-price-label">Price each</label></div>
             <div class="money-field"><span>$</span><input type="number" id="a-price" min="0" step="0.5" placeholder="25"></div>
           </div>
           <div>
@@ -798,29 +803,29 @@ var SEED = {
     unit: "tray", units: "trays", pack: 64, ready: true, account: null, orders: [],
     items: [
     { id: "haworthia", common: "Crowded Haworthia", latin: "Haworthia coarctata", photo: "haworthia",
-      sizes: [{ sid: "haworthia-a", size: "2 in", price: 35, qty: 4 }] },
+      sizes: [{ sid: "haworthia-a", size: "2 in", price: 35, qty: 4, pack: 64 }] },
     { id: "shangrila", common: "Sedeveria 'Shangri La'", latin: "Sedeveria hybrid", photo: "shangrila",
-      sizes: [{ sid: "shangrila-a", size: "2 in", price: 35, qty: 4 }] },
+      sizes: [{ sid: "shangrila-a", size: "2 in", price: 35, qty: 4, pack: 64 }] },
     { id: "atlantis", common: "Echeveria 'Atlantis'", latin: "Echeveria hybrid", photo: "atlantis",
-      sizes: [{ sid: "atlantis-a", size: "2 in", price: 35, qty: 6 }] },
+      sizes: [{ sid: "atlantis-a", size: "2 in", price: 35, qty: 6, pack: 64 }] },
     { id: "butterfield", common: "Sedeveria 'Harry Butterfield'", latin: "Sedeveria hybrid", photo: "butterfield",
-      sizes: [{ sid: "butterfield-a", size: "2 in", price: 35, qty: 3 }] },
+      sizes: [{ sid: "butterfield-a", size: "2 in", price: 35, qty: 3, pack: 64 }] },
     { id: "firestorm", common: "Firestorm Sedum", latin: "Sedum adolphi 'Firestorm'", photo: "firestorm",
-      sizes: [{ sid: "firestorm-a", size: "2 in", price: 35, qty: 3 }] },
+      sizes: [{ sid: "firestorm-a", size: "2 in", price: 35, qty: 3, pack: 64 }] },
     { id: "coppertone", common: "Coppertone Stonecrop", latin: "Sedum nussbaumerianum", photo: "coppertone",
-      sizes: [{ sid: "coppertone-a", size: "2 in", price: 35, qty: 4 }] },
+      sizes: [{ sid: "coppertone-a", size: "2 in", price: 35, qty: 4, pack: 64 }] },
     { id: "lemonball", common: "Lemon Ball Cactus", latin: "Parodia leninghausii", photo: "lemonball",
-      sizes: [{ sid: "lemonball-a", size: "2 in", price: 35, qty: 13 }] },
+      sizes: [{ sid: "lemonball-a", size: "2 in", price: 35, qty: 13, pack: 64 }] },
     { id: "redpagoda", common: "Red Pagoda Succulent", latin: "Crassula rupestris 'High Voltage'", photo: "redpagoda",
-      sizes: [{ sid: "redpagoda-a", size: "2 in", price: 35, qty: 1 }] },
+      sizes: [{ sid: "redpagoda-a", size: "2 in", price: 35, qty: 1, pack: 64 }] },
     { id: "moonstone", common: "Moonstone Succulent", latin: "Pachyphytum bracteosum", photo: "moonstone",
-      sizes: [{ sid: "moonstone-a", size: "2 in", price: 35, qty: 2 }] },
+      sizes: [{ sid: "moonstone-a", size: "2 in", price: 35, qty: 2, pack: 64 }] },
     { id: "redsky", common: "Echeveria 'Red Sky'", latin: "Echeveria hybrid", photo: "redsky",
-      sizes: [{ sid: "redsky-a", size: "2 in", price: 35, qty: 7 }] },
+      sizes: [{ sid: "redsky-a", size: "2 in", price: 35, qty: 7, pack: 64 }] },
     { id: "peanut", common: "Peanut Cactus", latin: "Echinopsis chamaecereus", photo: "peanut",
-      sizes: [{ sid: "peanut-a", size: "2 in", price: 35, qty: 1 }] },
+      sizes: [{ sid: "peanut-a", size: "2 in", price: 35, qty: 1, pack: 64 }] },
     { id: "bluebarrel", common: "Blue Barrel Cactus", latin: "Ferocactus glaucescens", photo: "bluebarrel",
-      sizes: [{ sid: "bluebarrel-a", size: "2 in", price: 35, qty: 2 }] },
+      sizes: [{ sid: "bluebarrel-a", size: "2 in", price: 35, qty: 2, pack: 64 }] },
     ]
   },
   {
@@ -829,37 +834,37 @@ var SEED = {
     unit: "plant", units: "plants", pack: 1, ready: true, account: null, orders: [],
     items: [
     { id: "P001", common: "Lady Slipper", latin: "Euphorbia lomelii", photo: null,
-      sizes: [{ sid: "P001-a", size: "10 gal", price: 27.5, qty: 6 }] },
+      sizes: [{ sid: "P001-a", size: "10 gal", price: 27.5, qty: 6, pack: 1 }] },
     { id: "P002", common: "Cow Horn Euphorbia", latin: "Euphorbia grandicornis", photo: null,
-      sizes: [{ sid: "P002-a", size: "10 gal", price: 27.5, qty: 4 }] },
+      sizes: [{ sid: "P002-a", size: "10 gal", price: 27.5, qty: 4, pack: 1 }] },
     { id: "P003", common: "Blue Fescue", latin: "Festuca glauca", photo: null,
-      sizes: [{ sid: "P003-a", size: "4 in", price: 6, qty: 40 }] },
+      sizes: [{ sid: "P003-a", size: "4 in", price: 6, qty: 40, pack: 1 }] },
     { id: "P004", common: "Peruvian Old Man Cactus", latin: "Espostoa lanata", photo: "espostoa",
-      sizes: [{ sid: "P004-a", size: "4 in", price: 5, qty: 30 }] },
+      sizes: [{ sid: "P004-a", size: "4 in", price: 5, qty: 30, pack: 1 }] },
     { id: "P005", common: "Peruvian Torch", latin: "Trichocereus peruvianus", photo: null,
-      sizes: [{ sid: "P005-a", size: "4 in", price: 5, qty: 24 }] },
+      sizes: [{ sid: "P005-a", size: "4 in", price: 5, qty: 24, pack: 1 }] },
     { id: "P006", common: "Toothpick Cactus", latin: "Stetsonia coryne", photo: "stetsonia",
-      sizes: [{ sid: "P006-a", size: "4 in", price: 5, qty: 18 }] },
+      sizes: [{ sid: "P006-a", size: "4 in", price: 5, qty: 18, pack: 1 }] },
     { id: "P007", common: "Saguaro del Monte", latin: "Neoraimondia herzogiana", photo: null,
-      sizes: [{ sid: "P007-a", size: "4 in", price: 10, qty: 12 }] },
+      sizes: [{ sid: "P007-a", size: "4 in", price: 10, qty: 12, pack: 1 }] },
     { id: "P008", common: "Moroccan Mound", latin: "Euphorbia resinifera", photo: "resinifera",
-      sizes: [{ sid: "P008-a", size: "15 gal", price: 35, qty: 3 }] },
+      sizes: [{ sid: "P008-a", size: "15 gal", price: 35, qty: 3, pack: 1 }] },
     { id: "P009", common: "Cobweb Hens and Chicks", latin: "Sempervivum arachnoideum", photo: "sempervivum",
-      sizes: [{ sid: "P009-a", size: "4 in", price: 7, qty: 24 }] },
+      sizes: [{ sid: "P009-a", size: "4 in", price: 7, qty: 24, pack: 1 }] },
     { id: "P010", common: "Madagascar Palm", latin: "Pachypodium lamerei", photo: "pachypodium",
-      sizes: [{ sid: "P010-a", size: "4 in", price: 5, qty: 20 }] },
+      sizes: [{ sid: "P010-a", size: "4 in", price: 5, qty: 20, pack: 1 }] },
     { id: "P011", common: "Mother of Hundreds", latin: "Mammillaria compressa", photo: "mammillaria",
-      sizes: [{ sid: "P011-a", size: "10 gal", price: 29.5, qty: 5 }] },
+      sizes: [{ sid: "P011-a", size: "10 gal", price: 29.5, qty: 5, pack: 1 }] },
     { id: "P012", common: "Agave 'Blue Glow'", latin: "Agave hybrid", photo: "blueglow",
-      sizes: [{ sid: "P012-a", size: "5 gal", price: 25, qty: 10 }] },
+      sizes: [{ sid: "P012-a", size: "5 gal", price: 25, qty: 10, pack: 1 }] },
     { id: "P013", common: "Artichoke Agave", latin: "Agave parryi", photo: "parryi",
-      sizes: [{ sid: "P013-a", size: "5 gal", price: 25, qty: 8 }] },
+      sizes: [{ sid: "P013-a", size: "5 gal", price: 25, qty: 8, pack: 1 }] },
     { id: "P014", common: "Mangave 'Bloodspot'", latin: "Manfreda maculosa x Agave macroacantha", photo: "mangave",
-      sizes: [{ sid: "P014-a", size: "5 gal", price: 25, qty: 6 }] },
+      sizes: [{ sid: "P014-a", size: "5 gal", price: 25, qty: 6, pack: 1 }] },
     { id: "P015", common: "Cushion Plant", latin: "Deuterocohnia brevifolia", photo: "deuterocohnia",
-      sizes: [{ sid: "P015-a", size: "6 in", price: 50, qty: 4 }] },
+      sizes: [{ sid: "P015-a", size: "6 in", price: 50, qty: 4, pack: 1 }] },
     { id: "P016", common: "Blue Euphorbia", latin: "Euphorbia coerulescens", photo: "coerulescens",
-      sizes: [{ sid: "P016-a", size: "", price: 0, qty: 0 }] },
+      sizes: [{ sid: "P016-a", size: "", price: 0, qty: 0, pack: 1 }] },
     ]
   }
   ]
@@ -941,6 +946,24 @@ function nameHTML(it) {
   return '<p class="botanical">' + esc(it.common) + '</p>' +
     (it.latin ? '<p class="common">' + esc(it.latin) + '</p>' : "");
 }
+var PACKS = [1, 18, 32, 50, 64, 72];
+function packOf(z) { return z.pack && z.pack > 1 ? z.pack : 1; }
+function packLabel(p) { return p === 1 ? "Each" : "Tray of " + p; }
+function unitNoun(p, n) {
+  return p === 1 ? (n === 1 ? "plant" : "plants") : (n === 1 ? "tray" : "trays");
+}
+function pricePhrase(z) {
+  return money(z.price) + (packOf(z) === 1 ? " each" : " a tray");
+}
+function packOptions(cur) {
+  var opts = PACKS.slice();
+  if (cur > 1 && opts.indexOf(cur) < 0) opts.push(cur);
+  opts.sort(function (a, b) { return a - b; });
+  return opts.map(function (p) {
+    return '<option value="' + p + '"' + (p === cur ? " selected" : "") + ">" + packLabel(p) + "</option>";
+  }).join("") + '<option value="__other">Tray of something else</option>';
+}
+
 function liveSizes(it) { return it.sizes.filter(function (z) { return z.qty > 0 && z.price > 0; }); }
 function listed(y) { return y.items.filter(function (it) { return liveSizes(it).length > 0; }); }
 function allPrices(y) {
@@ -1064,8 +1087,6 @@ function renderShop() {
 
   var prices = allPrices(y);
   var terms = [];
-  if (y.pack > 1) terms.push(["Tray", y.pack + " ct"]);
-  terms.push(["Sold by", "the " + y.unit]);
   if (prices.length) {
     terms.push(["Price", Math.min.apply(null, prices) === Math.max.apply(null, prices)
       ? money(prices[0])
@@ -1088,10 +1109,12 @@ function renderShop() {
       var stock = z.qty <= 1 ? '<span class="chip low">Last one</span>'
         : z.qty <= 3 ? '<span class="chip low">Only ' + z.qty + '</span>'
         : z.qty >= 20 ? '<span class="chip deep">Deep stock</span>' : "";
+      var p = packOf(z);
       return '<div class="srow">' +
         '<span class="sinfo">' + (z.size ? "<b>" + esc(z.size) + "</b>" : "") +
-          '<span>' + money(z.price) + " a " + y.unit + '</span>' +
-          '<span>' + z.qty + ' on hand</span>' + stock + '</span>' +
+          (p > 1 ? '<span>tray of ' + p + '</span>' : "") +
+          '<span>' + pricePhrase(z) + '</span>' +
+          '<span>' + z.qty + " " + unitNoun(p, z.qty) + ' on hand</span>' + stock + '</span>' +
         '<div class="stepper">' +
           '<button type="button" data-sid="' + z.sid + '" data-d="-1" aria-label="One fewer ' + esc(it.common) + ' ' + esc(z.size) + '"' + (n ? "" : " disabled") + '>&minus;</button>' +
           '<input type="number" min="0" max="' + z.qty + '" class="count' + (n ? "" : " zero") + '" value="' + n +
@@ -1125,26 +1148,27 @@ function renderShop() {
     box.appendChild(row);
   });
 
-  var units = 0, kinds = 0, total = 0;
+  var units = 0, kinds = 0, total = 0, plants = 0;
   y.items.forEach(function (it) {
     var any = false;
     it.sizes.forEach(function (z) {
       var n = Math.min(picked[z.sid] || 0, z.qty);
       picked[z.sid] = n;
-      if (n) { units += n; total += n * z.price; any = true; }
+      if (n) { units += n; total += n * z.price; plants += n * packOf(z); any = true; }
     });
     if (any) kinds++;
   });
 
-  var rows = [["Kinds", kinds], [y.units.charAt(0).toUpperCase() + y.units.slice(1), units]];
-  if (y.pack > 1) rows.push(["Plants", (units * y.pack).toLocaleString()]);
+  var rows = [["Kinds", kinds], ["Lines", units]];
+  if (plants !== units) rows.push(["Plants in total", plants.toLocaleString()]);
   document.getElementById("tally").innerHTML =
     rows.map(function (r) { return '<div class="tally-row"><span>' + r[0] + '</span><span>' + r[1] + '</span></div>'; }).join("") +
     '<div class="tally-row grand"><span>Total</span><span>' + money(total) + '</span></div>';
 
-  document.getElementById("bar-sum").textContent = units ? plural(units, y) + " \u00B7 " + money(total) : "Nothing selected";
+  var picks = units + (units === 1 ? " item" : " items");
+  document.getElementById("bar-sum").textContent = units ? picks + " \u00B7 " + money(total) : "Nothing selected";
   document.getElementById("pad-sub").textContent = units
-    ? kinds + " kind" + (kinds === 1 ? "" : "s") + " \u00B7 " + plural(units, y)
+    ? kinds + " kind" + (kinds === 1 ? "" : "s") + " \u00B7 " + picks
     : "Nothing selected";
   document.getElementById("send").disabled = units === 0;
   document.getElementById("ticket").textContent = units ? buildTicket() : "Pick something to see the staging list.";
@@ -1174,7 +1198,7 @@ function currentLines() {
   y.items.forEach(function (it) {
     it.sizes.forEach(function (z) {
       if (picked[z.sid] > 0) {
-        out.push({ sid: z.sid, qty: picked[z.sid], filled: picked[z.sid], price: z.price,
+        out.push({ sid: z.sid, qty: picked[z.sid], filled: picked[z.sid], price: z.price, pack: packOf(z),
                    common: it.common, latin: it.latin, size: z.size });
       }
     });
@@ -1188,13 +1212,18 @@ function buildTicket() {
   out.push(mode() === "pickup"
     ? "PICKUP: " + prettyDate(dateEl.value)
     : "DELIVERY TO: " + (document.getElementById("addr").value.trim() || "address to confirm"));
-  out.push("", "PLEASE STAGE", "------------------------------------------");
+  out.push("", "PLEASE STAGE", "-------------------------------------------------");
+  var plants = 0;
   lines.forEach(function (l) {
-    units += l.qty; total += l.qty * l.price;
-    out.push(String(l.qty).padEnd(5) + (l.common + (l.size ? "  " + l.size : "")).padEnd(34) + money(l.qty * l.price));
+    var p = l.pack || 1;
+    units += l.qty; total += l.qty * l.price; plants += l.qty * p;
+    var what = l.common + (l.size ? "  " + l.size : "") + (p > 1 ? "  (trays of " + p + ")" : "");
+    if (what.length > 42) what = what.slice(0, 41) + "\u2026";
+    out.push(String(l.qty).padEnd(5) + what.padEnd(44) + money(l.qty * l.price));
   });
-  out.push("------------------------------------------");
-  out.push(String(units).padEnd(5) + (y.units + (y.pack > 1 ? "  =  " + units * y.pack + " plants" : "")).padEnd(34) + money(total));
+  out.push("-------------------------------------------------");
+  var summary = units + (units === 1 ? " item" : " items") + (plants !== units ? ",  " + plants + " plants in total" : "");
+  out.push("".padEnd(5) + summary.padEnd(44) + money(total));
   var n = document.getElementById("notes").value.trim();
   if (n) out.push("", "NOTES: " + n);
   out.push("", "Payment on " + (mode() === "pickup" ? "pickup" : "delivery") + ", as usual.");
@@ -1242,13 +1271,14 @@ function renderHistory() {
     var st = !o.staged ? ["sent", "With the grower"] : short ? ["short", "Staged, short"] : ["staged", "Staged and ready"];
     var units = 0, total = 0;
     o.lines.forEach(function (l) { var q = o.staged ? l.filled : l.qty; units += q; total += q * l.price; });
+    var picks = units + (units === 1 ? " item" : " items");
     var when = o.mode === "pickup" ? "Pickup " + prettyDate(o.date) : "Delivery to " + (o.addr || "address to confirm");
 
     var el = document.createElement("div");
     el.className = "hist";
     el.innerHTML =
       '<div class="hist-top"><div><p>' + esc(when) + '</p>' +
-        '<span class="hist-sub">' + esc(o.ref) + ' \u00B7 ' + plural(units, y) + ' \u00B7 ' + money(total) + '</span>' +
+        '<span class="hist-sub">' + esc(o.ref) + ' \u00B7 ' + picks + ' \u00B7 ' + money(total) + '</span>' +
       '</div><span class="status ' + st[0] + '">' + st[1] + '</span></div>' +
       '<ul>' + o.lines.map(function (l) {
         var q = o.staged && l.filled !== l.qty
@@ -1387,13 +1417,13 @@ function startSetup() {
     sells: y.sells || "",
     unit: y.unit || "plant",
     pack: y.pack || 1,
-    rows: y.items.length ? null : [blankRow(), blankRow(), blankRow()]
+    rows: null
   };
-  if (W.draft.rows === null) W.draft.rows = [blankRow()];
+  W.draft.rows = [blankRow(W.draft.pack)];
   renderSetup();
   setView("setup");
 }
-function blankRow() { return { common: "", size: "4 in", price: "", qty: "" }; }
+function blankRow(pack) { return { common: "", size: "4 in", price: "", qty: "", pack: pack || 1 }; }
 
 function renderSetup() {
   var y = sessionYard();
@@ -1416,7 +1446,7 @@ function renderSetup() {
   if (W.step === 1) {
     var u = W.draft.unit;
     h = "<h2>How do you sell?</h2>" +
-      '<p class="blurb">This sets how everything is counted and priced. Pick whichever matches how you already quote people.</p>' +
+      '<p class="blurb">Whichever you pick here is just the starting point. You can set it per plant on the next step, so a tray of starters and a single 30 gallon specimen can live side by side.</p>' +
       '<div class="picks">' +
         '<label><input type="radio" name="w-unit" value="plant"' + (u === "plant" ? " checked" : "") + '>' +
           '<b>One plant at a time</b><small>You price each plant. Most specimen growers work this way.</small></label>' +
@@ -1438,6 +1468,8 @@ function renderSetup() {
             '<input type="text" data-w="common" data-i="' + i + '" placeholder="Blue Barrel Cactus" value="' + esc(r.common) + '"></div>' +
           '<div><div class="field-label"' + (i ? ' style="display:none"' : "") + '>Size</div>' +
             '<select data-w="size" data-i="' + i + '">' + sizeOptions(r.size) + '</select></div>' +
+          '<div><div class="field-label"' + (i ? ' style="display:none"' : "") + '>Sold as</div>' +
+            '<select data-w="pack" data-i="' + i + '">' + packOptions(r.pack || 1) + '</select></div>' +
           '<div><div class="field-label"' + (i ? ' style="display:none"' : "") + '>Price</div>' +
             '<input type="number" min="0" step="0.5" data-w="price" data-i="' + i + '" placeholder="25" value="' + esc(r.price) + '"></div>' +
           '<div><div class="field-label"' + (i ? ' style="display:none"' : "") + '>' + unitWord.charAt(0).toUpperCase() + unitWord.slice(1) + '</div>' +
@@ -1450,14 +1482,17 @@ function renderSetup() {
 
   if (W.step === 3) {
     var good = W.draft.rows.filter(function (r) { return r.common.trim() && Number(r.price) > 0 && Number(r.qty) > 0; });
-    var unitName = W.draft.unit === "tray" ? "tray" : "plant";
+
     h = "<h2>This is what they will see</h2>" +
       '<p class="blurb">If it looks right, finish up. Anything with no price or none in stock stays hidden until you fill it in.</p>' +
       '<div class="preview"><div class="phead">' + esc(y.name) + (W.draft.where ? " \u00B7 " + esc(W.draft.where) : "") + '</div>' +
       (good.length
         ? "<ul>" + good.map(function (r) {
-            return "<li><b>" + esc(r.common) + "</b><span>" + esc(r.size) + "</span><span>" +
-              money(Number(r.price)) + " a " + unitName + "</span><span>" + r.qty + " on hand</span></li>";
+            var p = r.pack || 1;
+            return "<li><b>" + esc(r.common) + "</b><span>" + esc(r.size) + "</span>" +
+              (p > 1 ? "<span>tray of " + p + "</span>" : "") +
+              "<span>" + money(Number(r.price)) + (p > 1 ? " a tray" : " each") + "</span><span>" +
+              r.qty + " " + unitNoun(p, Number(r.qty)) + " on hand</span></li>";
           }).join("") + "</ul>"
         : '<ul><li>Nothing listed yet. Go back and add at least one.</li></ul>') +
       '</div>';
@@ -1506,7 +1541,13 @@ function stash() {
   }
   if (W.step === 2) {
     document.querySelectorAll("[data-w]").forEach(function (el) {
-      W.draft.rows[Number(el.dataset.i)][el.dataset.w] = el.value;
+      var row = W.draft.rows[Number(el.dataset.i)];
+      if (el.dataset.w === "pack") {
+        if (el.value === "__other") {
+          var n = prompt("How many plants come in one tray?", "64");
+          row.pack = Math.max(1, Math.floor(Number(n) || 1));
+        } else { row.pack = Math.max(1, Number(el.value) || 1); }
+      } else { row[el.dataset.w] = el.value; }
     });
   }
 }
@@ -1537,7 +1578,7 @@ function finishSetup() {
     var id = "n" + Date.now() + i;
     y.items.push({
       id: id, common: r.common.trim(), latin: "", photo: null,
-      sizes: [{ sid: id + "-a", size: r.size, price: Number(r.price), qty: Number(r.qty) }]
+      sizes: [{ sid: id + "-a", size: r.size, price: Number(r.price), qty: Number(r.qty), pack: r.pack || 1 }]
     });
   });
   y.ready = true;
@@ -1557,7 +1598,12 @@ function renderBench() {
   document.getElementById("b-name").textContent = y.name;
   document.getElementById("b-who").textContent = "Signed in as " + (y.account ? y.account.user : "");
   document.getElementById("b-onhand-l").textContent = y.units + " on hand";
-  document.getElementById("a-qty-label").textContent = "How many " + y.units;
+  if (!document.getElementById("a-sold").innerHTML) {
+    document.getElementById("a-sold").innerHTML = packOptions(y.pack > 1 ? y.pack : 1);
+    document.getElementById("a-price-label").textContent = y.pack > 1 ? "Price a tray" : "Price each";
+  }
+  document.getElementById("a-qty-label").textContent =
+    "How many " + unitNoun(Number(document.getElementById("a-sold").value) || 1, 2);
   document.getElementById("b-waiting").textContent = y.orders.filter(function (o) { return !o.staged; }).length;
   document.getElementById("b-live").textContent = listed(y).length;
   var onHand = 0;
@@ -1572,6 +1618,7 @@ function renderBench() {
   y.orders.forEach(function (o, idx) {
     var units = 0, total = 0;
     o.lines.forEach(function (l) { units += l.filled; total += l.filled * l.price; });
+    var picks = units + (units === 1 ? " item" : " items");
     var short = o.lines.some(function (l) { return l.filled < l.qty; });
     var when = o.mode === "pickup" ? "Pickup " + prettyDate(o.date) : "Delivery to " + (o.addr || "address to confirm");
 
@@ -1585,7 +1632,8 @@ function renderBench() {
             : l.filled < l.qty ? '<span class="fill-flag short">short ' + (l.qty - l.filled) + '</span>'
             : '<span class="fill-flag ok">all of it</span>';
           return '<div class="fill-line">' +
-            '<div class="fill-name">' + esc(l.common) + (l.size ? ' \u00B7 ' + esc(l.size) : '') + '<small>asked for ' + l.qty + '</small></div>' +
+            '<div class="fill-name">' + esc(l.common) + (l.size ? ' \u00B7 ' + esc(l.size) : '') +
+              '<small>asked for ' + l.qty + ((l.pack || 1) > 1 ? ' \u00B7 trays of ' + l.pack : '') + '</small></div>' +
             '<div class="stepper">' +
               '<button type="button" data-fill="' + idx + '" data-li="' + li + '" data-d="-1" aria-label="One fewer ' + esc(l.common) + '"' + (l.filled ? "" : " disabled") + '>&minus;</button>' +
               '<input type="number" min="0" max="' + l.qty + '" class="count' + (l.filled ? "" : " zero") + '" value="' + l.filled +
@@ -1598,7 +1646,7 @@ function renderBench() {
     el.className = "order" + (o.staged ? " done" : "");
     el.innerHTML =
       '<div class="order-top"><div><p class="order-when">' + esc(when) + '</p>' +
-        '<p class="order-sub">' + esc(o.ref) + ' \u00B7 Cactus Warehouse \u00B7 ' + plural(units, y) + '</p></div>' +
+        '<p class="order-sub">' + esc(o.ref) + ' \u00B7 Cactus Warehouse \u00B7 ' + picks + '</p></div>' +
         '<p class="order-when">' + money(total) + '</p></div>' +
       (o.staged ? "" : '<p class="hint" style="margin:0">If you cannot find all of something, turn it down here before you stage. They see exactly what changed.</p>') +
       body +
@@ -1657,6 +1705,7 @@ function renderBench() {
       var why = z.price <= 0 ? "needs a price" : z.qty === 0 ? "sold out" : money(z.qty * z.price);
       return '<div class="bsize" title="' + esc(why) + '">' +
         '<select data-size="' + i + '" data-zi="' + zi + '" aria-label="Size">' + sizeOptions(z.size) + '</select>' +
+        '<select data-pack="' + i + '" data-zi="' + zi + '" aria-label="Sold as">' + packOptions(packOf(z)) + '</select>' +
         '<div class="priced"><span>$</span><input type="number" min="0" step="0.5" value="' + (z.price || "") +
           '" data-price="' + i + '" data-zi="' + zi + '" aria-label="Price"' + (z.price <= 0 ? ' class="flagged"' : "") + '></div>' +
         '<div class="stepper big">' +
@@ -1758,6 +1807,19 @@ function renderBench() {
       save(); renderBench(); renderShop(); renderPortal();
     });
   });
+  benchList.querySelectorAll("[data-pack]").forEach(function (sel) {
+    sel.addEventListener("change", function () {
+      var z = y.items[Number(sel.dataset.pack)].sizes[Number(sel.dataset.zi)];
+      if (sel.value === "__other") {
+        var n = prompt("How many plants come in one tray?", String(packOf(z)));
+        var v = Math.max(1, Math.floor(Number(n) || 0));
+        z.pack = v > 1 ? v : 1;
+      } else {
+        z.pack = Math.max(1, Number(sel.value) || 1);
+      }
+      save(); renderBench(); renderShop(); renderPortal();
+    });
+  });
   benchList.querySelectorAll("[data-rm]").forEach(function (b) {
     b.addEventListener("click", function () {
       var it = y.items[Number(b.dataset.rm)];
@@ -1770,7 +1832,7 @@ function renderBench() {
       var it = y.items[Number(b.dataset.add)];
       var used = it.sizes.map(function (z) { return z.size; });
       var next = SIZES.filter(function (o) { return used.indexOf(o) < 0; })[0] || "";
-      it.sizes.push({ sid: newSid(it), size: next, price: 0, qty: 0 });
+      it.sizes.push({ sid: newSid(it), size: next, price: 0, qty: 0, pack: y.pack > 1 ? y.pack : 1 });
       save(); renderBench(); renderShop(); renderPortal();
     });
   });
@@ -1785,6 +1847,18 @@ function flashPhoto(msg) {
 }
 
 document.getElementById("a-size").innerHTML = sizeOptions("4 in");
+document.getElementById("a-sold").innerHTML = packOptions(1);
+
+document.getElementById("a-sold").addEventListener("change", function () {
+  if (this.value === "__other") {
+    var n = prompt("How many plants come in one tray?", "64");
+    var v = Math.max(1, Math.floor(Number(n) || 0));
+    this.innerHTML = packOptions(v > 1 ? v : 1);
+  }
+  var p = Number(this.value) || 1;
+  document.getElementById("a-price-label").textContent = p > 1 ? "Price a tray" : "Price each";
+  document.getElementById("a-qty-label").textContent = "How many " + unitNoun(p, 2);
+});
 
 document.getElementById("a-size").addEventListener("change", function () {
   var custom = document.getElementById("a-size-custom");
@@ -1813,6 +1887,9 @@ function resetAddForm() {
   ["a-name", "a-latin", "a-price"].forEach(function (id) { document.getElementById(id).value = ""; });
   document.getElementById("a-qty").value = "1";
   document.getElementById("a-size").innerHTML = sizeOptions("4 in");
+  var y0 = sessionYard();
+  document.getElementById("a-sold").innerHTML = packOptions(y0 && y0.pack > 1 ? y0.pack : 1);
+  document.getElementById("a-price-label").textContent = (y0 && y0.pack > 1) ? "Price a tray" : "Price each";
   var custom = document.getElementById("a-size-custom");
   custom.value = ""; custom.hidden = true;
   newPhoto = null;
@@ -1839,7 +1916,8 @@ document.getElementById("addform").addEventListener("submit", function (e) {
     sizes: [{
       sid: id + "-a", size: size,
       price: Math.max(0, Number(document.getElementById("a-price").value) || 0),
-      qty: Math.max(0, Math.floor(Number(document.getElementById("a-qty").value) || 0))
+      qty: Math.max(0, Math.floor(Number(document.getElementById("a-qty").value) || 0)),
+      pack: Math.max(1, Number(document.getElementById("a-sold").value) || 1)
     }]
   });
 
