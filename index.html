@@ -733,15 +733,15 @@
         </div>
         <div>
           <div class="field-label"><label for="g-user">Username</label></div>
-          <input type="text" id="g-user" autocomplete="username" required>
+          <input type="text" id="g-user" name="username" autocomplete="username" required>
         </div>
         <div>
           <div class="field-label"><label for="g-pass">Password</label></div>
-          <input type="password" id="g-pass" autocomplete="current-password" required>
+          <input type="password" id="g-pass" name="password" autocomplete="current-password" required>
         </div>
         <div id="email-field" hidden>
           <div class="field-label"><label for="g-email">Email for order alerts, optional</label></div>
-          <input type="text" id="g-email" autocomplete="email" placeholder="you@yournursery.com">
+          <input type="text" id="g-email" name="email" autocomplete="email" placeholder="you@yournursery.com">
           <p class="hint">New orders get sent here so you do not have to keep checking the page.</p>
         </div>
         <p class="gate-err" id="g-err"></p>
@@ -1618,6 +1618,16 @@ document.getElementById("g-swap").addEventListener("click", function () {
   setGateMode(gateMode === "up" ? "in" : "up");
 });
 
+function storeCreds(u, p) {
+  try {
+    if (window.PasswordCredential) {
+      navigator.credentials.store(new PasswordCredential({
+        id: u, password: p, name: "Grower Portal"
+      })).catch(function () {});
+    }
+  } catch (e) {}
+}
+
 function clearGate() {
   ["g-user", "g-pass", "g-code", "g-email"].forEach(function (id) {
     var el = document.getElementById(id); if (el) el.value = "";
@@ -1646,6 +1656,7 @@ document.getElementById("gate-form").addEventListener("submit", function (e) {
         done();
         if (j.error) { err.textContent = j.error; return; }
         S.session = { token: j.token, kind: "grower" };
+        storeCreds(u, p);
         pendingInvite = null;
         document.getElementById("g-invited").hidden = true;
         saveLocal(); clearGate();
@@ -1662,6 +1673,7 @@ document.getElementById("gate-form").addEventListener("submit", function (e) {
     done();
     if (j.error) { err.textContent = j.error; return; }
     S.session = { token: j.token, kind: j.kind };
+    storeCreds(u, p);
     saveLocal(); clearGate();
     if (j.kind === "owner") {
       refreshPortal().then(function () { renderPortal(); setView(landing()); if (S.shopping && shopping()) renderShop(); });
