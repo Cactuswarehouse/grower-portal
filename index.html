@@ -625,6 +625,8 @@
           <span>Available now</span>
           <span id="s-count"></span>
         </div>
+        <input type="text" id="shop-search" placeholder="Search their list" autocomplete="off"
+               style="margin-bottom: 12px" hidden>
         <div class="list" id="shop-list"></div>
       </main>
 
@@ -805,7 +807,24 @@
     <div class="orders" id="order-list"></div>
 
     <div class="section-label" style="margin:30px 0 10px"><span>What you have listed</span><span id="b-note"></span></div>
+    <input type="text" id="bench-search" placeholder="Search this list" autocomplete="off"
+           style="margin-bottom: 12px" hidden>
     <div class="list" id="bench-list"></div>
+
+    <div class="addform" id="importform" hidden>
+      <h3>Import their whole list</h3>
+      <p class="hint" style="margin: 0 0 10px">
+        Open their spreadsheet, select the name, available and price columns
+        (headers are fine), copy, and paste here. This replaces their current
+        list; anything not in the paste drops off. Sizes are read from the end
+        of each name, and photos on matching plants are kept.
+      </p>
+      <textarea id="imp-text" placeholder="Paste here" style="min-height: 120px; font-family: var(--mono); font-size: 12px"></textarea>
+      <div class="card-actions">
+        <button type="button" class="btn auto" id="imp-go">Import</button>
+        <span class="hint" id="imp-note"></span>
+      </div>
+    </div>
 
     <form class="addform" id="addform" autocomplete="off">
       <h3>Add a plant</h3>
@@ -1412,7 +1431,19 @@ function renderShop() {
   box.innerHTML = "";
   if (!live.length) box.innerHTML = '<div class="empty">Nothing listed right now. Check back after they update.</div>';
 
-  live.forEach(function (it) {
+  var searchEl = document.getElementById("shop-search");
+  searchEl.hidden = live.length <= 25;
+  var q = searchEl.hidden ? "" : searchEl.value.trim().toLowerCase();
+  var shown = q ? live.filter(function (it) {
+    return (it.common + " " + it.latin + " " + it.sizes.map(function (z) { return z.size; }).join(" "))
+      .toLowerCase().indexOf(q) >= 0;
+  }) : live;
+  var CAP = 150;
+  var capped = shown.length > CAP;
+  if (capped) shown = shown.slice(0, CAP);
+  if (q && !shown.length) box.innerHTML = '<div class="empty">Nothing matches "' + esc(q) + '".</div>';
+
+  shown.forEach(function (it) {
     var zs = liveSizes(it);
     var anyPicked = zs.some(function (z) { return picked[z.sid] > 0; });
 
@@ -1459,6 +1490,12 @@ function renderShop() {
     });
     box.appendChild(row);
   });
+  if (capped) {
+    var more = document.createElement("div");
+    more.className = "empty";
+    more.textContent = "Showing the first " + CAP + " of " + (q ? "the matches" : live.length + " listings") + ". Type in the search box to narrow it.";
+    box.appendChild(more);
+  }
 
   var units = 0, kinds = 0, total = 0, plants = 0;
   y.items.forEach(function (it) {
@@ -1491,6 +1528,19 @@ function renderShop() {
 
   renderHistory();
 }
+
+var shopSearchTimer = null;
+document.getElementById("shop-search").addEventListener("input", function () {
+  clearTimeout(shopSearchTimer);
+  shopSearchTimer = setTimeout(function () {
+    var el = document.getElementById("shop-search");
+    var pos = el.selectionStart;
+    renderShop();
+    el = document.getElementById("shop-search");
+    el.focus();
+    el.setSelectionRange(pos, pos);
+  }, 250);
+});
 
 document.querySelectorAll('input[name="fulfill"]').forEach(function (r) {
   r.addEventListener("change", function () {
@@ -1786,6 +1836,76 @@ function signOut() {
   gateMode = "in"; pendingInvite = null;
   renderGate(); clearGate(); setView("gate");
 }
+/* ---------- pasted-list import (owner manage mode) ---------- */
+
+// "Echeveria 'Lola' 4in" -> size "4 in"; also 5g -> 5 gal, 42/48in heights kept
+function splitNameSize(name) {
+  var m = name.match(/^(.*?)[\s]+(\d+(?:\/\d+)?(?:\.\d+)?)\s*(g|gal|in|inch)\.?$/i);
+  if (!m) return { common: name, size: "" };
+  var unit = m[3].toLowerCase();
+  return { common: m[1].trim(),
+           size: m[2] + " " + (unit === "g" || unit === "gal" ? "gal" : "in") };
+}
+
+function parsePastedList(text) {
+  var rows = [], skipped = 0;
+  text.split(/\r?\n/).forEach(function (line) {
+    if (!line.trim()) return;
+    var cells = line.split("\t").map(function (c) { return c.trim(); });
+    if (cells.length < 2) cells = line.split(/\s{2,}/).map(function (c) { return c.trim(); });
+    var name = cells[0];
+    if (!name || /^(name|availability|your order)/i.test(name)) { skipped++; return; }
+    var nums = [], texts = [];
+    cells.slice(1).forEach(function (c) {
+      if (!c) return;
+      var n = Number(String(c).replace(/[$,]/g, ""));
+      if (isFinite(n) && String(c).match(/\d/)) nums.push(n); else texts.push(c);
+    });
+    if (!nums.length) { skipped++; return; }
+    // her layout: available first, then price; a trailing 0 total is ignored
+    var qty = nums[0];
+    var price = nums.length > 1 ? nums[1] : 0;
+    var ns = splitNameSize(name);
+    rows.push({ common: ns.common, size: ns.size, latin: texts.join(", "),
+                pack: 1, price: price, qty: Math.floor(qty) });
+  });
+  return { rows: rows, skipped: skipped };
+}
+
+document.getElementById("imp-go").addEventListener("click", function () {
+  var y = benchYard();
+  var gid = manageGid();
+  if (!y || !gid) return;
+  var parsed = parsePastedList(document.getElementById("imp-text").value);
+  var note = document.getElementById("imp-note");
+  if (!parsed.rows.length) { note.textContent = "Nothing usable in the paste. Each line needs a name, a count and a price."; return; }
+  if (!confirm("Replace " + y.name + "'s whole list with these " + parsed.rows.length +
+    " plants? Anything not in the paste drops off their page.")) return;
+  var b = document.getElementById("imp-go");
+  b.disabled = true;
+  note.textContent = "Importing " + parsed.rows.length + " plants...";
+  api({ action: "bulkReplaceListings", growerId: gid, rows: parsed.rows }).then(function (j) {
+    b.disabled = false;
+    if (j.error) { note.textContent = j.error; return; }
+    note.textContent = "Imported " + j.imported + " plants." + (parsed.skipped ? " Skipped " + parsed.skipped + " lines without numbers." : "");
+    document.getElementById("imp-text").value = "";
+    refreshPortal().then(function () { renderBench(); });
+  }).catch(function () { b.disabled = false; note.textContent = "Import failed. Try again."; });
+});
+
+var benchSearchTimer = null;
+document.getElementById("bench-search").addEventListener("input", function () {
+  clearTimeout(benchSearchTimer);
+  benchSearchTimer = setTimeout(function () {
+    var el = document.getElementById("bench-search");
+    var pos = el.selectionStart;
+    renderBench();
+    el = document.getElementById("bench-search");
+    el.focus();
+    el.setSelectionRange(pos, pos);
+  }, 250);
+});
+
 document.getElementById("bench-back").addEventListener("click", function () {
   manageId = null;
   refreshPortal().then(function () { renderPortal(); setView("portal"); });
@@ -2100,7 +2220,15 @@ function renderBench() {
     });
   });
   benchList.innerHTML = "";
+  var bSearch = document.getElementById("bench-search");
+  bSearch.hidden = y.items.length <= 25;
+  var bq = bSearch.hidden ? "" : bSearch.value.trim().toLowerCase();
+  var bCAP = 150, bShown = 0;
+  document.getElementById("importform").hidden = !managing;
   y.items.forEach(function (it, i) {
+    if (bq && (it.common + " " + it.latin).toLowerCase().indexOf(bq) < 0) return;
+    if (bShown >= bCAP) return;
+    bShown++;
     var live = liveSizes(it).length;
     var rows = it.sizes.map(function (z, zi) {
       var why = z.price <= 0 ? "needs a price" : z.qty === 0 ? "sold out" : money(z.qty * z.price);
@@ -2137,7 +2265,12 @@ function renderBench() {
       '</div>';
     benchList.appendChild(row);
   });
-
+  if (bShown >= bCAP) {
+    var bMore = document.createElement("div");
+    bMore.className = "empty";
+    bMore.textContent = "Showing the first " + bCAP + ". Search to narrow it.";
+    benchList.appendChild(bMore);
+  }
 
   benchList.querySelectorAll("[data-qty]").forEach(function (b) {
     b.addEventListener("click", function () {
