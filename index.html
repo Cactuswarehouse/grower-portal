@@ -537,6 +537,19 @@
   .inside-btn:hover { color: var(--accent); }
   .inside-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
+  .pager {
+    display: flex; align-items: center; justify-content: center; gap: 14px;
+    padding: 16px 0 4px; font-family: var(--mono); font-size: 12.5px;
+    font-variant-numeric: tabular-nums; color: var(--ink-2);
+  }
+  .pager button {
+    background: var(--panel); border: 1px solid var(--line-strong); border-radius: 3px;
+    color: var(--ink); font-family: var(--sans); font-size: 13.5px; padding: 9px 16px; cursor: pointer;
+  }
+  .pager button:hover:not(:disabled) { border-color: var(--accent); }
+  .pager button:disabled { opacity: .35; cursor: not-allowed; }
+  .pager button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
   .splash {
     padding: 60px 0; text-align: center; color: var(--ink-3);
     font-family: var(--serif); font-size: 19px;
@@ -1354,6 +1367,8 @@ function renderInside() {
 document.getElementById("i-manage").addEventListener("click", function () {
   if (!insideId) return;
   manageId = insideId;
+  benchPage = 0;
+  var bs = document.getElementById("bench-search"); if (bs) bs.value = "";
   renderBench();
   setView("bench");
 });
@@ -1395,7 +1410,8 @@ document.getElementById("i-copy").addEventListener("click", function () {
 });
 
 function openShop(id) {
-  S.shopping = id; picked = {}; save();
+  S.shopping = id; picked = {}; shopPage = 0; save();
+  var se = document.getElementById("shop-search"); if (se) se.value = "";
   document.getElementById("sent-note").textContent = "";
   renderShop(); setView("shop");
 }
@@ -1434,14 +1450,15 @@ function renderShop() {
   var searchEl = document.getElementById("shop-search");
   searchEl.hidden = live.length <= 25;
   var q = searchEl.hidden ? "" : searchEl.value.trim().toLowerCase();
-  var shown = q ? live.filter(function (it) {
+  var matched = q ? live.filter(function (it) {
     return (it.common + " " + it.latin + " " + it.sizes.map(function (z) { return z.size; }).join(" "))
       .toLowerCase().indexOf(q) >= 0;
   }) : live;
-  var CAP = 150;
-  var capped = shown.length > CAP;
-  if (capped) shown = shown.slice(0, CAP);
-  if (q && !shown.length) box.innerHTML = '<div class="empty">Nothing matches "' + esc(q) + '".</div>';
+  var PAGE = 60;
+  var pages = Math.max(1, Math.ceil(matched.length / PAGE));
+  if (shopPage >= pages) shopPage = pages - 1;
+  var shown = matched.slice(shopPage * PAGE, (shopPage + 1) * PAGE);
+  if (q && !matched.length) box.innerHTML = '<div class="empty">Nothing matches "' + esc(q) + '".</div>';
 
   shown.forEach(function (it) {
     var zs = liveSizes(it);
@@ -1490,11 +1507,22 @@ function renderShop() {
     });
     box.appendChild(row);
   });
-  if (capped) {
-    var more = document.createElement("div");
-    more.className = "empty";
-    more.textContent = "Showing the first " + CAP + " of " + (q ? "the matches" : live.length + " listings") + ". Type in the search box to narrow it.";
-    box.appendChild(more);
+  if (pages > 1) {
+    var pager = document.createElement("div");
+    pager.className = "pager";
+    pager.innerHTML =
+      '<button type="button" id="shop-prev"' + (shopPage === 0 ? " disabled" : "") + '>&larr; Previous</button>' +
+      '<span>Page ' + (shopPage + 1) + ' of ' + pages + ' \u00B7 ' + matched.length + ' plants</span>' +
+      '<button type="button" id="shop-next"' + (shopPage >= pages - 1 ? " disabled" : "") + '>Next &rarr;</button>';
+    box.appendChild(pager);
+    pager.querySelector("#shop-prev").addEventListener("click", function () {
+      shopPage = Math.max(0, shopPage - 1); renderShop();
+      document.getElementById("shop-list").scrollIntoView({ block: "start" });
+    });
+    pager.querySelector("#shop-next").addEventListener("click", function () {
+      shopPage = Math.min(pages - 1, shopPage + 1); renderShop();
+      document.getElementById("shop-list").scrollIntoView({ block: "start" });
+    });
   }
 
   var units = 0, kinds = 0, total = 0, plants = 0;
@@ -1529,8 +1557,10 @@ function renderShop() {
   renderHistory();
 }
 
+var shopPage = 0;
 var shopSearchTimer = null;
 document.getElementById("shop-search").addEventListener("input", function () {
+  shopPage = 0;
   clearTimeout(shopSearchTimer);
   shopSearchTimer = setTimeout(function () {
     var el = document.getElementById("shop-search");
@@ -1893,8 +1923,10 @@ document.getElementById("imp-go").addEventListener("click", function () {
   }).catch(function () { b.disabled = false; note.textContent = "Import failed. Try again."; });
 });
 
+var benchPage = 0;
 var benchSearchTimer = null;
 document.getElementById("bench-search").addEventListener("input", function () {
+  benchPage = 0;
   clearTimeout(benchSearchTimer);
   benchSearchTimer = setTimeout(function () {
     var el = document.getElementById("bench-search");
@@ -2223,12 +2255,19 @@ function renderBench() {
   var bSearch = document.getElementById("bench-search");
   bSearch.hidden = y.items.length <= 25;
   var bq = bSearch.hidden ? "" : bSearch.value.trim().toLowerCase();
-  var bCAP = 150, bShown = 0;
   document.getElementById("importform").hidden = !managing;
+  var bMatchedIdx = [];
   y.items.forEach(function (it, i) {
     if (bq && (it.common + " " + it.latin).toLowerCase().indexOf(bq) < 0) return;
-    if (bShown >= bCAP) return;
-    bShown++;
+    bMatchedIdx.push(i);
+  });
+  var BPAGE = 60;
+  var bPages = Math.max(1, Math.ceil(bMatchedIdx.length / BPAGE));
+  if (benchPage >= bPages) benchPage = bPages - 1;
+  var bSlice = {};
+  bMatchedIdx.slice(benchPage * BPAGE, (benchPage + 1) * BPAGE).forEach(function (i) { bSlice[i] = true; });
+  y.items.forEach(function (it, i) {
+    if (!bSlice[i]) return;
     var live = liveSizes(it).length;
     var rows = it.sizes.map(function (z, zi) {
       var why = z.price <= 0 ? "needs a price" : z.qty === 0 ? "sold out" : money(z.qty * z.price);
@@ -2265,11 +2304,22 @@ function renderBench() {
       '</div>';
     benchList.appendChild(row);
   });
-  if (bShown >= bCAP) {
-    var bMore = document.createElement("div");
-    bMore.className = "empty";
-    bMore.textContent = "Showing the first " + bCAP + ". Search to narrow it.";
-    benchList.appendChild(bMore);
+  if (bPages > 1) {
+    var bPager = document.createElement("div");
+    bPager.className = "pager";
+    bPager.innerHTML =
+      '<button type="button" id="bench-prev"' + (benchPage === 0 ? " disabled" : "") + '>&larr; Previous</button>' +
+      '<span>Page ' + (benchPage + 1) + ' of ' + bPages + ' \u00B7 ' + bMatchedIdx.length + ' plants</span>' +
+      '<button type="button" id="bench-next"' + (benchPage >= bPages - 1 ? " disabled" : "") + '>Next &rarr;</button>';
+    benchList.appendChild(bPager);
+    bPager.querySelector("#bench-prev").addEventListener("click", function () {
+      benchPage = Math.max(0, benchPage - 1); renderBench();
+      document.getElementById("bench-list").scrollIntoView({ block: "start" });
+    });
+    bPager.querySelector("#bench-next").addEventListener("click", function () {
+      benchPage = Math.min(bPages - 1, benchPage + 1); renderBench();
+      document.getElementById("bench-list").scrollIntoView({ block: "start" });
+    });
   }
 
   benchList.querySelectorAll("[data-qty]").forEach(function (b) {
