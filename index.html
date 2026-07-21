@@ -707,6 +707,22 @@
       <button type="button" class="btn ghost auto" id="i-reset">Reset their login</button>
     </div>
 
+    <div class="callout-invite" id="i-manage-wrap" style="background: transparent; border-style: dashed;">
+      <h3>Keep their list for them</h3>
+      <p>For growers who email you availability instead of using the page. You get the same bench they would, and everything you change is live for your ordering right away.</p>
+      <div class="linkrow">
+        <button type="button" class="btn auto" id="i-manage">Manage their list</button>
+      </div>
+      <div class="w-field" style="margin: 14px 0 0; max-width: 420px">
+        <div class="field-label"><label for="i-email">Where their orders get emailed</label></div>
+        <div class="linkrow">
+          <input type="text" id="i-email" placeholder="grower@example.com">
+          <button type="button" class="btn ghost auto" id="i-email-save">Save</button>
+        </div>
+        <p class="hint">Every order you place goes to this address on its own, with the staging list. Leave blank to handle it yourself with Print.</p>
+      </div>
+    </div>
+
     <div class="section-label" style="margin-top:26px"><span>Everything they have, including hidden</span><span id="i-count"></span></div>
     <div class="scroll-x">
       <table class="inside-table">
@@ -780,6 +796,7 @@
     <div class="banner">
       <strong>This is everything you have to do.</strong>
       <span>Keep the counts and prices honest, and mark orders staged. Cactus Warehouse sees your changes right away.</span>
+      <button type="button" class="btn ghost auto" id="bench-back" style="margin-left:auto" hidden>&larr; Back to your growers</button>
       <button type="button" class="btn ghost auto" id="changepass" style="margin-left:auto">Change password</button>
       <button type="button" class="btn ghost auto" id="signout">Sign out</button>
     </div>
@@ -977,7 +994,7 @@ function adaptYard(g) {
   });
   var pack = Number(g.defaultPack) || 1;
   return {
-    id: g.id, code: g.code || "", name: g.name, where: g.where, sells: g.sells,
+    id: g.id, code: g.code || "", name: g.name, where: g.where, sells: g.sells, email: g.email || "",
     pack: pack, unit: pack > 1 ? "tray" : "plant", units: pack > 1 ? "trays" : "plants",
     ready: !!g.ready, hasLogin: !!g.hasLogin, account: g.hasLogin ? {} : null,
     items: items,
@@ -1014,8 +1031,8 @@ function queueListing(sid, patch) {
     var send = p.patch; delete pendingEdits[sid];
     var listing = { sid: sid };
     for (var k in send) listing[k] = send[k];
-    api({ action: "upsertListing", listing: listing }).then(function (j) {
-      if (j.error) { toast(j.error); refreshBench().then(renderBench); }
+    api(withGid({ action: "upsertListing", listing: listing })).then(function (j) {
+      if (j.error) { toast(j.error); refreshMine().then(renderBench); }
     }).catch(function () {});
   }, 600);
 }
@@ -1025,8 +1042,8 @@ function queueFill(ref, sid, filled) {
   clearTimeout(pendingFills[key]);
   pendingFills[key] = setTimeout(function () {
     delete pendingFills[key];
-    api({ action: "fillLine", ref: ref, sid: sid, filled: filled }).then(function (j) {
-      if (j.error) { toast(j.error); refreshBench().then(renderBench); }
+    api(withGid({ action: "fillLine", ref: ref, sid: sid, filled: filled })).then(function (j) {
+      if (j.error) { toast(j.error); refreshMine().then(renderBench); }
     }).catch(function () {});
   }, 600);
 }
@@ -1058,6 +1075,13 @@ function isOwner() { return !!S.session && S.session.kind === "owner"; }
 function sessionYard() {
   return S.session && S.session.kind === "grower" ? S.yards[0] || null : null;
 }
+// When the owner manages an offline grower's list, mutations carry their id.
+var manageId = null;
+function manageGid() { return isOwner() && manageId ? manageId : null; }
+function withGid(body) { var g = manageGid(); if (g) body.growerId = g; return body; }
+function benchYard() { return manageGid() ? yard(manageId) : sessionYard(); }
+function refreshMine() { return isOwner() ? refreshPortal() : refreshBench(); }
+
 function inviteLink(code) {
   return location.origin + location.pathname + "?invite=" + code;
 }
@@ -1251,6 +1275,7 @@ function renderInside() {
   inviteBox.hidden = y.hasLogin || !y.code;
   if (!inviteBox.hidden) document.getElementById("i-link").value = inviteLink(y.code);
   document.getElementById("i-reset-wrap").hidden = !y.hasLogin;
+  document.getElementById("i-email").value = y.email || "";
 
   document.getElementById("i-count").textContent = (live + hiddenCount) + " listings";
   var tb = document.getElementById("i-listings");
@@ -1277,7 +1302,7 @@ function renderInside() {
   var box = document.getElementById("i-orders");
   box.innerHTML = "";
   if (!y.orders.length) box.innerHTML = '<div class="empty">No orders yet.</div>';
-  y.orders.forEach(function (o) {
+  y.orders.forEach(function (o, i2) {
     var short = o.staged && o.lines.some(function (l) { return l.filled < l.qty; });
     var st = !o.staged ? ["sent", "With the grower"] : short ? ["short", "Staged, short"] : ["staged", "Staged and ready"];
     var units = 0, total = 0;
@@ -1296,10 +1321,34 @@ function renderInside() {
         return "<li>" + q + "<span>" + esc(l.common) +
           (l.size ? ' <span style="color:var(--ink-3)">' + esc(l.size) + "</span>" : "") + "</span></li>";
       }).join("") + "</ul>" +
-      (o.note ? '<p class="order-note" style="margin-top:8px">Note: ' + esc(o.note) + "</p>" : "");
+      (o.note ? '<p class="order-note" style="margin-top:8px">Note: ' + esc(o.note) + "</p>" : "") +
+      '<div style="margin-top:10px"><button type="button" class="btn ghost auto" data-iprint="' + i2 + '">Print order form</button></div>';
     box.appendChild(el);
   });
+  box.querySelectorAll("[data-iprint]").forEach(function (b) {
+    b.addEventListener("click", function () {
+      printOrder(y, y.orders[Number(b.dataset.iprint)]);
+    });
+  });
 }
+
+document.getElementById("i-manage").addEventListener("click", function () {
+  if (!insideId) return;
+  manageId = insideId;
+  renderBench();
+  setView("bench");
+});
+
+document.getElementById("i-email-save").addEventListener("click", function () {
+  var y = yard(insideId);
+  if (!y) return;
+  var v = document.getElementById("i-email").value.trim();
+  api({ action: "setGrowerEmail", growerId: y.id, email: v }).then(function (j) {
+    if (j.error) { toast(j.error); return; }
+    y.email = v;
+    toast(v ? "Saved. Orders now email them at " + v + "." : "Cleared. Orders will not be emailed to them.");
+  }).catch(function () {});
+});
 
 document.getElementById("i-reset").addEventListener("click", function () {
   var y = yard(insideId);
@@ -1533,6 +1582,44 @@ document.getElementById("send").addEventListener("click", function () {
     }).catch(function () { sendBusy = false; renderShop(); });
 });
 
+function ticketText(y, o) {
+  var units = 0, plants = 0, total = 0;
+  var lines = o.lines.map(function (l) {
+    var q = o.staged ? l.filled : l.qty;
+    var p = l.pack || 1;
+    units += q; total += q * l.price; plants += q * p;
+    var what = l.common + (l.size ? "  " + l.size : "") + (p > 1 ? "  (trays of " + p + ")" : "");
+    if (what.length > 42) what = what.slice(0, 41) + "\u2026";
+    var flag = o.staged && l.filled < l.qty ? "  short " + (l.qty - l.filled) : "";
+    return String(q).padEnd(5) + what.padEnd(44) + money(q * l.price) + flag;
+  });
+  var out = ["CACTUS WAREHOUSE ORDER  " + o.ref, y.name, ""];
+  out.push(o.mode === "delivery"
+    ? "DELIVERY TO: " + (o.addr || "address to confirm")
+    : "PICKUP: " + prettyDate(o.date));
+  out.push("", "PLEASE STAGE", "-------------------------------------------------");
+  out = out.concat(lines);
+  out.push("-------------------------------------------------");
+  var summary = units + (units === 1 ? " item" : " items") + (plants !== units ? ",  " + plants + " plants in total" : "");
+  out.push("".padEnd(5) + summary.padEnd(44) + money(total));
+  if (o.note) out.push("", "NOTES: " + o.note);
+  out.push("", "Payment on " + (o.mode === "delivery" ? "delivery" : "pickup") + ", as usual.");
+  out.push("", "Questions: " + EMAIL);
+  return out.join("\n");
+}
+
+function printOrder(y, o) {
+  var w = window.open("", "_blank", "width=440,height=640");
+  if (!w) { toast("Your browser blocked the print window. Allow popups for this site."); return; }
+  w.document.write(
+    '<title>Order ' + esc(o.ref) + '</title>' +
+    '<pre style="font: 13px ui-monospace, Menlo, Consolas, monospace; white-space: pre-wrap; padding: 24px; color: #111;">' +
+    esc(ticketText(y, o)) + "</pre>");
+  w.document.close();
+  w.focus();
+  w.print();
+}
+
 function renderHistory() {
   var y = shopping();
   document.getElementById("history-card").hidden = !y || y.orders.length === 0;
@@ -1540,7 +1627,7 @@ function renderHistory() {
   box.innerHTML = "";
   if (!y) return;
 
-  y.orders.forEach(function (o) {
+  y.orders.forEach(function (o, hi) {
     var short = o.lines.some(function (l) { return l.filled < l.qty; });
     var st = !o.staged ? ["sent", "With the grower"] : short ? ["short", "Staged, short"] : ["staged", "Staged and ready"];
     var units = 0, total = 0;
@@ -1562,8 +1649,14 @@ function renderHistory() {
           : l.filled === 0 ? ' <span class="status short">none available</span>'
           : l.filled < l.qty ? ' <span class="status short">short ' + (l.qty - l.filled) + '</span>' : "";
         return '<li>' + q + '<span>' + esc(l.common) + (l.size ? ' <span style="color:var(--ink-3)">' + esc(l.size) + '</span>' : '') + flag + '</span></li>';
-      }).join("") + '</ul>';
+      }).join("") + '</ul>' +
+      '<div style="margin-top:10px"><button type="button" class="btn ghost auto" data-hprint="' + hi + '">Print order form</button></div>';
     box.appendChild(el);
+  });
+  box.querySelectorAll("[data-hprint]").forEach(function (b) {
+    b.addEventListener("click", function () {
+      printOrder(y, y.orders[Number(b.dataset.hprint)]);
+    });
   });
 }
 
@@ -1655,7 +1748,7 @@ document.getElementById("gate-form").addEventListener("submit", function (e) {
       .then(function (j) {
         done();
         if (j.error) { err.textContent = j.error; return; }
-        S.session = { token: j.token, kind: "grower" };
+        S.session = { token: j.token, kind: "grower", user: u };
         storeCreds(u, p);
         pendingInvite = null;
         document.getElementById("g-invited").hidden = true;
@@ -1672,7 +1765,7 @@ document.getElementById("gate-form").addEventListener("submit", function (e) {
   api({ action: "login", user: u, pass: p }).then(function (j) {
     done();
     if (j.error) { err.textContent = j.error; return; }
-    S.session = { token: j.token, kind: j.kind };
+    S.session = { token: j.token, kind: j.kind, user: u };
     storeCreds(u, p);
     saveLocal(); clearGate();
     if (j.kind === "owner") {
@@ -1693,6 +1786,10 @@ function signOut() {
   gateMode = "in"; pendingInvite = null;
   renderGate(); clearGate(); setView("gate");
 }
+document.getElementById("bench-back").addEventListener("click", function () {
+  manageId = null;
+  refreshPortal().then(function () { renderPortal(); setView("portal"); });
+});
 document.getElementById("signout").addEventListener("click", signOut);
 document.getElementById("signout-owner").addEventListener("click", signOut);
 
@@ -1900,11 +1997,17 @@ var orderList = document.getElementById("order-list");
 var benchList = document.getElementById("bench-list");
 
 function renderBench() {
-  var y = sessionYard();
+  var y = benchYard();
   if (!y) return;
 
+  var managing = !!manageGid();
   document.getElementById("b-name").textContent = y.name;
-  document.getElementById("b-who").textContent = "Signed in as " + (y.account ? y.account.user : "");
+  document.getElementById("b-who").textContent = managing
+    ? "You are keeping this list for them"
+    : "Signed in as " + ((S.session && S.session.user) || y.name);
+  document.getElementById("bench-back").hidden = !managing;
+  document.getElementById("changepass").hidden = managing;
+  document.getElementById("signout").hidden = managing;
   document.getElementById("b-onhand-l").textContent = y.units + " on hand";
   if (!document.getElementById("a-sold").innerHTML) {
     document.getElementById("a-sold").innerHTML = packOptions(y.pack > 1 ? y.pack : 1);
@@ -1990,9 +2093,9 @@ function renderBench() {
     b.addEventListener("click", function () {
       var o = y.orders[Number(b.dataset.stage)];
       b.disabled = true;
-      api({ action: "stageOrder", ref: o.ref }).then(function (j) {
+      api(withGid({ action: "stageOrder", ref: o.ref })).then(function (j) {
         if (j.error) { toast(j.error); b.disabled = false; return; }
-        refreshBench().then(function () { renderBench(); });
+        refreshMine().then(function () { renderBench(); });
       }).catch(function () { b.disabled = false; });
     });
   });
@@ -2126,8 +2229,8 @@ function renderBench() {
       var z = it.sizes[Number(b.dataset.zi)];
       it.sizes.splice(Number(b.dataset.zi), 1);
       renderBench();
-      api({ action: "deleteListing", sid: z.sid }).then(function (j) {
-        if (j.error) { toast(j.error); refreshBench().then(renderBench); }
+      api(withGid({ action: "deleteListing", sid: z.sid })).then(function (j) {
+        if (j.error) { toast(j.error); refreshMine().then(renderBench); }
       }).catch(function () {});
     });
   });
@@ -2138,8 +2241,8 @@ function renderBench() {
       var next = SIZES.filter(function (o) { return used.indexOf(o) < 0; })[0] || "";
       var pack = y.pack > 1 ? y.pack : 1;
       b.disabled = true;
-      api({ action: "upsertListing", listing: { itemId: it.id, common: it.common, latin: it.latin,
-            size: next, pack: pack, price: 0, qty: 0 } })
+      api(withGid({ action: "upsertListing", listing: { itemId: it.id, common: it.common, latin: it.latin,
+            size: next, pack: pack, price: 0, qty: 0 } }))
         .then(function (j) {
           b.disabled = false;
           if (j.error) { toast(j.error); return; }
@@ -2199,7 +2302,7 @@ function resetAddForm() {
   ["a-name", "a-latin", "a-price"].forEach(function (id) { document.getElementById(id).value = ""; });
   document.getElementById("a-qty").value = "1";
   document.getElementById("a-size").innerHTML = sizeOptions("4 in");
-  var y0 = sessionYard();
+  var y0 = benchYard();
   document.getElementById("a-sold").innerHTML = packOptions(y0 && y0.pack > 1 ? y0.pack : 1);
   document.getElementById("a-price-label").textContent = (y0 && y0.pack > 1) ? "Price a tray" : "Price each";
   var custom = document.getElementById("a-size-custom");
@@ -2211,7 +2314,7 @@ function resetAddForm() {
 
 document.getElementById("addform").addEventListener("submit", function (e) {
   e.preventDefault();
-  var y = sessionYard();
+  var y = benchYard();
   var name = document.getElementById("a-name").value.trim();
   if (!y || !name) return;
 
@@ -2229,7 +2332,7 @@ document.getElementById("addform").addEventListener("submit", function (e) {
   };
   var btn = document.querySelector("#addform button[type=submit]");
   btn.disabled = true;
-  api({ action: "upsertListing", listing: listing }).then(function (j) {
+  api(withGid({ action: "upsertListing", listing: listing })).then(function (j) {
     btn.disabled = false;
     if (j.error) { flashPhoto(j.error); return; }
     y.items.push({
@@ -2249,7 +2352,8 @@ var VIEWS = { portal: "view-portal", shop: "view-shop", gate: "view-gate", bench
 
 function setView(v) {
   if ((v === "portal" || v === "shop" || v === "inside") && !isOwner()) v = landing();
-  if ((v === "bench" || v === "setup") && !sessionYard()) v = landing();
+  if (v === "bench" && !benchYard()) v = landing();
+  if (v === "setup" && !sessionYard()) v = landing();
   Object.keys(VIEWS).forEach(function (k) { document.getElementById(VIEWS[k]).hidden = k !== v; });
   document.body.className = document.body.className.replace(/\bshopping\b/, "").trim();
   if (v === "shop") document.body.classList.add("shopping");
