@@ -305,6 +305,7 @@
   .status.sent { color: var(--ink-3); }
   .status.staged { color: var(--glaucous); }
   .status.short { color: var(--alarm); }
+  .status.fulfilled { color: var(--accent); }
   .strike { text-decoration: line-through; color: var(--ink-3); }
 
   /* ---- gate ---- */
@@ -1032,7 +1033,10 @@ function adaptYard(g) {
     items: items,
     orders: (g.orders || []).map(function (o) {
       return { ref: o.ref, mode: o.mode, date: o.date, addr: o.addr, note: o.note,
-               staged: o.status === "staged", lines: o.lines || [] };
+               staged: o.status === "staged" || o.status === "fulfilled",
+               fulfilled: o.status === "fulfilled",
+               fulfilledAt: o.fulfilledAt || "", fulfilledBy: o.fulfilledBy || "",
+               lines: o.lines || [] };
     })
   };
 }
@@ -1336,7 +1340,8 @@ function renderInside() {
   if (!y.orders.length) box.innerHTML = '<div class="empty">No orders yet.</div>';
   y.orders.forEach(function (o, i2) {
     var short = o.staged && o.lines.some(function (l) { return l.filled < l.qty; });
-    var st = !o.staged ? ["sent", "With the grower"] : short ? ["short", "Staged, short"] : ["staged", "Staged and ready"];
+    var st = o.fulfilled ? ["fulfilled", "Fulfilled"]
+      : !o.staged ? ["sent", "With the grower"] : short ? ["short", "Staged, short"] : ["staged", "Staged and ready"];
     var units = 0, total = 0;
     o.lines.forEach(function (l) { var q = o.staged ? l.filled : l.qty; units += q; total += q * l.price; });
     var when = o.mode === "pickup" ? "Pickup " + prettyDate(o.date) : "Delivery to " + (o.addr || "address to confirm");
@@ -1344,7 +1349,8 @@ function renderInside() {
     el.className = "hist";
     el.innerHTML =
       '<div class="hist-top"><div><p>' + esc(when) + "</p>" +
-        '<span class="hist-sub">' + esc(o.ref) + " \u00B7 " + units + (units === 1 ? " item" : " items") + " \u00B7 " + money(total) + "</span>" +
+        '<span class="hist-sub">' + esc(o.ref) + " \u00B7 " + units + (units === 1 ? " item" : " items") + " \u00B7 " + money(total) +
+        (o.fulfilled ? " \u00B7 fulfilled " + prettyDate(o.fulfilledAt) + (o.fulfilledBy ? " by " + esc(o.fulfilledBy) : "") : "") + "</span>" +
       '</div><span class="status ' + st[0] + '">' + st[1] + "</span></div>" +
       "<ul>" + o.lines.map(function (l) {
         var q = o.staged && l.filled !== l.qty
@@ -1354,12 +1360,27 @@ function renderInside() {
           (l.size ? ' <span style="color:var(--ink-3)">' + esc(l.size) + "</span>" : "") + "</span></li>";
       }).join("") + "</ul>" +
       (o.note ? '<p class="order-note" style="margin-top:8px">Note: ' + esc(o.note) + "</p>" : "") +
-      '<div style="margin-top:10px"><button type="button" class="btn ghost auto" data-iprint="' + i2 + '">Print order form</button></div>';
+      '<div style="margin-top:10px; display:flex; gap:8px; flex-wrap:wrap">' +
+        '<button type="button" class="btn ghost auto" data-iprint="' + i2 + '">Print order form</button>' +
+        (o.fulfilled ? "" : '<button type="button" class="btn auto" data-idone="' + i2 + '">Mark fulfilled</button>') +
+      '</div>';
     box.appendChild(el);
   });
   box.querySelectorAll("[data-iprint]").forEach(function (b) {
     b.addEventListener("click", function () {
       printOrder(y, y.orders[Number(b.dataset.iprint)]);
+    });
+  });
+  box.querySelectorAll("[data-idone]").forEach(function (b) {
+    b.addEventListener("click", function () {
+      var o = y.orders[Number(b.dataset.idone)];
+      if (!confirm("Mark order " + o.ref + " as fulfilled? Both you and " + y.name + " get a confirmation email.")) return;
+      b.disabled = true;
+      api({ action: "fulfillOrder", ref: o.ref, growerId: y.id }).then(function (j) {
+        if (j.error) { toast(j.error); b.disabled = false; return; }
+        toast("Order " + o.ref + " marked fulfilled. Both sides emailed.");
+        refreshPortal().then(renderInside).catch(function () {});
+      }).catch(function () { b.disabled = false; });
     });
   });
 }
@@ -1674,6 +1695,7 @@ function ticketText(y, o) {
     return String(q).padEnd(5) + what.padEnd(44) + money(q * l.price) + flag;
   });
   var out = ["CACTUS WAREHOUSE ORDER  " + o.ref, y.name, ""];
+  if (o.fulfilled) out.push("FULFILLED " + prettyDate(o.fulfilledAt), "");
   out.push(o.mode === "delivery"
     ? "DELIVERY TO: " + (o.addr || "address to confirm")
     : "PICKUP: " + prettyDate(o.date));
@@ -1709,7 +1731,8 @@ function renderHistory() {
 
   y.orders.forEach(function (o, hi) {
     var short = o.lines.some(function (l) { return l.filled < l.qty; });
-    var st = !o.staged ? ["sent", "With the grower"] : short ? ["short", "Staged, short"] : ["staged", "Staged and ready"];
+    var st = o.fulfilled ? ["fulfilled", "Fulfilled"]
+      : !o.staged ? ["sent", "With the grower"] : short ? ["short", "Staged, short"] : ["staged", "Staged and ready"];
     var units = 0, total = 0;
     o.lines.forEach(function (l) { var q = o.staged ? l.filled : l.qty; units += q; total += q * l.price; });
     var picks = units + (units === 1 ? " item" : " items");
@@ -1719,7 +1742,8 @@ function renderHistory() {
     el.className = "hist";
     el.innerHTML =
       '<div class="hist-top"><div><p>' + esc(when) + '</p>' +
-        '<span class="hist-sub">' + esc(o.ref) + ' \u00B7 ' + picks + ' \u00B7 ' + money(total) + '</span>' +
+        '<span class="hist-sub">' + esc(o.ref) + ' \u00B7 ' + picks + ' \u00B7 ' + money(total) +
+        (o.fulfilled ? ' \u00B7 fulfilled ' + prettyDate(o.fulfilledAt) : '') + '</span>' +
       '</div><span class="status ' + st[0] + '">' + st[1] + '</span></div>' +
       '<ul>' + o.lines.map(function (l) {
         var q = o.staged && l.filled !== l.qty
@@ -1730,12 +1754,27 @@ function renderHistory() {
           : l.filled < l.qty ? ' <span class="status short">short ' + (l.qty - l.filled) + '</span>' : "";
         return '<li>' + q + '<span>' + esc(l.common) + (l.size ? ' <span style="color:var(--ink-3)">' + esc(l.size) + '</span>' : '') + flag + '</span></li>';
       }).join("") + '</ul>' +
-      '<div style="margin-top:10px"><button type="button" class="btn ghost auto" data-hprint="' + hi + '">Print order form</button></div>';
+      '<div style="margin-top:10px; display:flex; gap:8px; flex-wrap:wrap">' +
+        '<button type="button" class="btn ghost auto" data-hprint="' + hi + '">Print order form</button>' +
+        (o.fulfilled ? '' : '<button type="button" class="btn auto" data-hdone="' + hi + '">Mark fulfilled</button>') +
+      '</div>';
     box.appendChild(el);
   });
   box.querySelectorAll("[data-hprint]").forEach(function (b) {
     b.addEventListener("click", function () {
       printOrder(y, y.orders[Number(b.dataset.hprint)]);
+    });
+  });
+  box.querySelectorAll("[data-hdone]").forEach(function (b) {
+    b.addEventListener("click", function () {
+      var o = y.orders[Number(b.dataset.hdone)];
+      if (!confirm("Mark order " + o.ref + " as fulfilled? Both you and " + y.name + " get a confirmation email.")) return;
+      b.disabled = true;
+      api({ action: "fulfillOrder", ref: o.ref, growerId: y.id }).then(function (j) {
+        if (j.error) { toast(j.error); b.disabled = false; return; }
+        toast("Order " + o.ref + " marked fulfilled. Both sides emailed.");
+        refreshMine().then(renderHistory).catch(function () {});
+      }).catch(function () { b.disabled = false; });
     });
   });
 }
@@ -2215,9 +2254,13 @@ function renderBench() {
       body +
       (o.note ? '<p class="order-note">Note: ' + esc(o.note) + '</p>' : "") +
       '<div class="order-actions">' +
-        (o.staged
-          ? '<span class="chip ' + (short ? "low" : "deep") + '">' + (short ? "Staged, short" : "Staged") + '</span>'
-          : '<button type="button" class="btn auto" data-stage="' + idx + '">Mark staged</button>') +
+        (o.fulfilled
+          ? '<span class="chip deep">Fulfilled ' + prettyDate(o.fulfilledAt) + '</span>'
+          : o.staged
+            ? '<span class="chip ' + (short ? "low" : "deep") + '">' + (short ? "Staged, short" : "Staged") + '</span>' +
+              '<button type="button" class="btn auto" data-fulfill="' + idx + '">' +
+                (o.mode === "pickup" ? "Mark picked up" : "Mark delivered") + '</button>'
+            : '<button type="button" class="btn auto" data-stage="' + idx + '">Mark staged</button>') +
       '</div>';
     orderList.appendChild(el);
   });
@@ -2247,6 +2290,19 @@ function renderBench() {
       b.disabled = true;
       api(withGid({ action: "stageOrder", ref: o.ref })).then(function (j) {
         if (j.error) { toast(j.error); b.disabled = false; return; }
+        refreshMine().then(function () { renderBench(); });
+      }).catch(function () { b.disabled = false; });
+    });
+  });
+  orderList.querySelectorAll("[data-fulfill]").forEach(function (b) {
+    b.addEventListener("click", function () {
+      var o = y.orders[Number(b.dataset.fulfill)];
+      var verb = o.mode === "pickup" ? "picked up" : "delivered";
+      if (!confirm("Mark order " + o.ref + " as " + verb + "? You and Cactus Warehouse both get a confirmation email.")) return;
+      b.disabled = true;
+      api(withGid({ action: "fulfillOrder", ref: o.ref })).then(function (j) {
+        if (j.error) { toast(j.error); b.disabled = false; return; }
+        toast("Order " + o.ref + " marked " + verb + ". Confirmation emails sent.");
         refreshMine().then(function () { renderBench(); });
       }).catch(function () { b.disabled = false; });
     });
