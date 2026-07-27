@@ -306,6 +306,18 @@
   .status.staged { color: var(--glaucous); }
   .status.short { color: var(--alarm); }
   .status.fulfilled { color: var(--accent); }
+  .status.waiting { color: var(--ink-3); }
+  .status.nope { color: var(--alarm); }
+  .askgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; }
+  .askphotos { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+  .askphotos:empty { margin-top: 0; }
+  .askthumb { position: relative; width: 76px; height: 76px; }
+  .askthumb img { width: 100%; height: 100%; object-fit: cover; border-radius: 2px; border: 1px solid var(--line); }
+  .askthumb button { position: absolute; top: -6px; right: -6px; width: 20px; height: 20px; line-height: 1;
+    border-radius: 50%; border: 1px solid var(--line-strong); background: var(--panel); color: var(--ink-2); cursor: pointer; }
+  .askthumb button:hover { color: var(--alarm); }
+  .ask-shot { display: flex; flex-wrap: wrap; gap: 8px; margin: 14px 0; }
+  .ask-shot img { width: 116px; height: 116px; object-fit: cover; border-radius: 2px; border: 1px solid var(--line); }
   .strike { text-decoration: line-through; color: var(--ink-3); }
 
   /* ---- gate ---- */
@@ -685,6 +697,49 @@
       <div class="history" id="history"></div>
     </section>
 
+    <section class="card" id="ask-card">
+      <h2>Ask them for something else</h2>
+      <p>For plants they do not list. They get an email with your photos and one screen to answer on, no login. If they have it, it lands on their list here and you can order it like anything else.</p>
+      <div class="askgrid">
+        <div>
+          <div class="field-label"><label for="ask-name">Plant</label></div>
+          <input type="text" id="ask-name" placeholder="Golden Torch">
+        </div>
+        <div>
+          <div class="field-label"><label for="ask-latin">Latin name, optional</label></div>
+          <input type="text" id="ask-latin" placeholder="Trichocereus spachianus">
+        </div>
+        <div>
+          <div class="field-label"><label for="ask-size">Size</label></div>
+          <select id="ask-size"></select>
+        </div>
+        <div>
+          <div class="field-label"><label for="ask-pack">Sold as</label></div>
+          <select id="ask-pack"></select>
+        </div>
+        <div>
+          <div class="field-label"><label for="ask-qty">How many you want</label></div>
+          <input type="number" id="ask-qty" min="0" step="1" placeholder="10">
+        </div>
+        <div>
+          <div class="field-label"><label for="ask-price">What you would pay, optional</label></div>
+          <input type="number" id="ask-price" min="0" step="0.5" placeholder="95">
+        </div>
+      </div>
+      <div style="margin-top:12px">
+        <div class="field-label"><label for="ask-note">Anything else they should know</label></div>
+        <textarea id="ask-note" placeholder="Rooted, single stem, that kind of thing"></textarea>
+      </div>
+      <div class="askphotos" id="ask-photos"></div>
+      <div class="card-actions" style="margin-top:12px">
+        <label class="btn ghost auto" for="ask-file" style="text-align:center; cursor:pointer">Add a photo</label>
+        <input type="file" id="ask-file" accept="image/*" multiple hidden>
+        <button type="button" class="btn auto" id="ask-send">Send this request</button>
+        <span class="hint" id="ask-note-msg"></span>
+      </div>
+      <div class="history" id="ask-list" style="margin-top:18px"></div>
+    </section>
+
     <section class="card">
       <h2>What the grower receives</h2>
       <p>Sending puts this on their side as a staging list and emails a copy to info@cactuswarehouse.com.</p>
@@ -785,6 +840,11 @@
         <button type="button" class="swap" id="g-swap">Have an invite code? Set up your login</button>
       </form>
     </div>
+  </div>
+
+  <!-- ============ ASK (grower answers by link, no login) ============ -->
+  <div id="view-ask" hidden>
+    <div class="gate" id="ask-panel"></div>
   </div>
 
   <!-- ============ SETUP ============ -->
@@ -1035,7 +1095,7 @@ function adaptYard(g) {
     noFulfillMail: !!g.noFulfillMail,
     pack: pack, unit: pack > 1 ? "tray" : "plant", units: pack > 1 ? "trays" : "plants",
     ready: !!g.ready, hasLogin: !!g.hasLogin, account: g.hasLogin ? {} : null,
-    items: items,
+    items: items, requests: g.requests || [],
     orders: (g.orders || []).map(function (o) {
       return { ref: o.ref, mode: o.mode, date: o.date, addr: o.addr, note: o.note,
                staged: o.status === "staged" || o.status === "fulfilled",
@@ -1585,6 +1645,7 @@ function renderShop() {
     "&body=" + encodeURIComponent(document.getElementById("ticket").textContent);
 
   renderHistory();
+  renderAskCard();
 }
 
 var shopPage = 0;
@@ -1791,6 +1852,241 @@ function renderHistory() {
 document.getElementById("back-portal").addEventListener("click", function () {
   S.shopping = null; save(); renderPortal(); setView("portal");
 });
+
+/* ================= ASKING FOR SOMETHING THEY DO NOT LIST ================= */
+
+var askPhotos = [];      // data URLs waiting to go out with the next request
+var askSending = false;
+
+function askStatus(r) {
+  return r.status === "have" ? ["fulfilled", "They have it"]
+    : r.status === "nope" ? ["nope", "They do not have it"]
+    : ["waiting", "Waiting on them"];
+}
+
+function renderAskCard() {
+  var y = shopping();
+  if (!y) return;
+
+  var sizeSel = document.getElementById("ask-size");
+  if (!sizeSel.options.length) {
+    sizeSel.innerHTML = '<option value="">No size given</option>' +
+      SIZES.map(function (s) { return '<option value="' + esc(s) + '">' + esc(s) + "</option>"; }).join("");
+    document.getElementById("ask-pack").innerHTML =
+      PACKS.map(function (p) {
+        return '<option value="' + p + '"' + (p === y.pack ? " selected" : "") + ">" + packLabel(p) + "</option>";
+      }).join("");
+  }
+
+  var strip = document.getElementById("ask-photos");
+  strip.innerHTML = askPhotos.map(function (p, i) {
+    return '<span class="askthumb"><img src="' + p + '" alt="">' +
+      '<button type="button" data-rmshot="' + i + '" aria-label="Remove this photo">&times;</button></span>';
+  }).join("");
+  strip.querySelectorAll("[data-rmshot]").forEach(function (b) {
+    b.addEventListener("click", function () {
+      askPhotos.splice(Number(b.dataset.rmshot), 1);
+      renderAskCard();
+    });
+  });
+
+  var box = document.getElementById("ask-list");
+  var reqs = y.requests || [];
+  box.innerHTML = "";
+  reqs.forEach(function (r, ri) {
+    var st = askStatus(r);
+    var unit = r.pack > 1 ? "a tray of " + r.pack : "each";
+    var el = document.createElement("div");
+    el.className = "hist";
+    el.innerHTML =
+      '<div class="hist-top"><div><p>' + esc(r.common) + (r.size ? " · " + esc(r.size) : "") + '</p>' +
+        '<span class="hist-sub">Asked ' + prettyDate(r.created) +
+        (r.wantQty ? " · wanted " + r.wantQty : "") +
+        (r.wantPrice ? " · offered " + money(r.wantPrice) + " " + unit : "") + '</span>' +
+      '</div><span class="status ' + st[0] + '">' + st[1] + '</span></div>' +
+      (r.photos && r.photos[0]
+        ? '<div class="ask-shot"><img src="' + r.photos[0] + '" alt="">' +
+          (r.photoCount > 1 ? '<span class="hint" style="align-self:center">and ' + (r.photoCount - 1) + ' more</span>' : "") + '</div>'
+        : "") +
+      (r.status === "have"
+        ? '<p class="order-note">They have ' + r.haveQty + ' at ' + money(r.havePrice) + ' ' + unit +
+          '. It is on their list above, ready to order.</p>'
+        : "") +
+      (r.note ? '<p class="order-note" style="margin-top:8px">Your note: ' + esc(r.note) + '</p>' : "") +
+      '<div style="margin-top:10px; display:flex; gap:8px; flex-wrap:wrap">' +
+        (r.status === "sent"
+          ? '<button type="button" class="btn ghost auto" data-asklink="' + ri + '">Copy their link</button>'
+          : "") +
+        '<button type="button" class="btn ghost auto" data-askdrop="' + ri + '">Remove</button>' +
+      '</div>';
+    box.appendChild(el);
+  });
+
+  box.querySelectorAll("[data-asklink]").forEach(function (b) {
+    b.addEventListener("click", function () {
+      var r = reqs[Number(b.dataset.asklink)];
+      var link = location.origin + location.pathname + "?ask=" + r.token;
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(link).then(
+          function () { toast("Link copied. Send it to them however you like."); },
+          function () { prompt("Copy their link:", link); });
+      } else { prompt("Copy their link:", link); }
+    });
+  });
+  box.querySelectorAll("[data-askdrop]").forEach(function (b) {
+    b.addEventListener("click", function () {
+      var r = reqs[Number(b.dataset.askdrop)];
+      if (!confirm("Remove your request for " + r.common + "? Anything they already added to their list stays.")) return;
+      b.disabled = true;
+      api({ action: "deleteRequest", id: r.id }).then(function (j) {
+        if (j.error) { toast(j.error); b.disabled = false; return; }
+        refreshPortal().then(function () { renderShop(); }).catch(function () {});
+      }).catch(function () { b.disabled = false; });
+    });
+  });
+}
+
+document.getElementById("ask-file").addEventListener("change", function () {
+  var files = Array.prototype.slice.call(this.files || []);
+  var room = 3 - askPhotos.length;
+  if (room <= 0) { toast("Three photos is the limit."); this.value = ""; return; }
+  files.slice(0, room).forEach(function (f) {
+    readPhoto(f, function (data, err) {
+      if (err) { toast(err); return; }
+      askPhotos.push(data);
+      renderAskCard();
+    });
+  });
+  this.value = "";
+});
+
+document.getElementById("ask-send").addEventListener("click", function () {
+  var y = shopping();
+  if (!y || askSending) return;
+  var common = document.getElementById("ask-name").value.trim();
+  if (!common) { toast("Name the plant you are after."); return; }
+
+  askSending = true;
+  var btn = this;
+  btn.disabled = true;
+  document.getElementById("ask-note-msg").textContent = "Sending…";
+  api({
+    action: "createRequest", growerId: y.id, common: common,
+    latin: document.getElementById("ask-latin").value.trim(),
+    size: document.getElementById("ask-size").value,
+    pack: Number(document.getElementById("ask-pack").value) || 1,
+    wantQty: Number(document.getElementById("ask-qty").value) || 0,
+    wantPrice: Number(document.getElementById("ask-price").value) || 0,
+    note: document.getElementById("ask-note").value.trim(),
+    photos: askPhotos
+  }).then(function (j) {
+    askSending = false; btn.disabled = false;
+    if (j.error) { toast(j.error); document.getElementById("ask-note-msg").textContent = ""; return; }
+    document.getElementById("ask-note-msg").textContent = j.emailed
+      ? "Sent. They have it by email."
+      : "Saved. They have no email on file, so copy their link below.";
+    ["ask-name", "ask-latin", "ask-qty", "ask-price", "ask-note"].forEach(function (id) {
+      document.getElementById(id).value = "";
+    });
+    askPhotos = [];
+    refreshPortal().then(function () { renderShop(); }).catch(function () {});
+  }).catch(function () {
+    askSending = false; btn.disabled = false;
+    document.getElementById("ask-note-msg").textContent = "";
+  });
+});
+
+/* ---- the grower's side: one screen, opened from the emailed link ---- */
+
+var askToken = null, askItem = null;
+
+function openAsk(token) {
+  askToken = token;
+  setView("ask");
+  document.getElementById("ask-panel").innerHTML = '<p class="hint">Opening…</p>';
+  return api({ action: "askView", ask: token }).then(function (j) {
+    if (j.error) {
+      document.getElementById("ask-panel").innerHTML =
+        '<h2>We cannot find that</h2><p>' + esc(j.error) + "</p>";
+      return;
+    }
+    askItem = j.request;
+    renderAskPanel(j.name);
+  }).catch(function () {
+    document.getElementById("ask-panel").innerHTML =
+      '<h2>Could not load</h2><p>Check your connection and open the link again.</p>';
+  });
+}
+
+function renderAskPanel(nurseryName) {
+  var r = askItem;
+  var unit = r.pack > 1 ? "a tray of " + r.pack : "each";
+  var panel = document.getElementById("ask-panel");
+
+  if (r.status !== "sent") {
+    panel.innerHTML = '<h2>Thank you</h2><p>You already answered on ' + esc(r.common) +
+      '. Nothing else to do here. Cactus Warehouse has your answer.</p>';
+    return;
+  }
+
+  panel.innerHTML =
+    '<p class="invited">Cactus Warehouse is asking <b>' + esc(nurseryName) + '</b> about a plant.</p>' +
+    '<h2>' + esc(r.common) + '</h2>' +
+    (r.latin ? '<p style="color:var(--ink-3); font-style:italic; margin-top:-6px">' + esc(r.latin) + '</p>' : "") +
+    '<p>' + esc(r.size ? r.size + ", sold " + unit : "Sold " + unit) +
+      (r.wantQty ? " · they want " + r.wantQty : "") +
+      (r.wantPrice ? " · they would pay " + money(r.wantPrice) + " " + unit : "") + '</p>' +
+    (r.photos && r.photos.length
+      ? '<div class="ask-shot">' + r.photos.map(function (p) { return '<img src="' + p + '" alt="">'; }).join("") + '</div>'
+      : "") +
+    (r.note ? '<p class="order-note">' + esc(r.note) + '</p>' : "") +
+    '<div id="ask-yes" hidden>' +
+      '<div class="field-label"><label for="ask-have-qty">How many you have</label></div>' +
+      '<input type="number" id="ask-have-qty" min="1" step="1" value="' + (r.wantQty || "") + '">' +
+      '<div class="field-label" style="margin-top:10px"><label for="ask-have-price">Your price, ' + esc(unit) + '</label></div>' +
+      '<input type="number" id="ask-have-price" min="0" step="0.5" value="' + (r.wantPrice || "") + '">' +
+      '<p class="hint">Put your own number on it. This is what they pay you.</p>' +
+      '<button type="button" class="btn" id="ask-add" style="margin-top:12px">Add it to my list</button>' +
+    '</div>' +
+    '<div id="ask-buttons" style="display:flex; flex-direction:column; gap:14px">' +
+      '<button type="button" class="btn" id="ask-have">Yes, we have it</button>' +
+      '<button type="button" class="swap" id="ask-none">We do not have it</button>' +
+    '</div>' +
+    '<p class="gate-err" id="ask-err"></p>';
+
+  document.getElementById("ask-have").addEventListener("click", function () {
+    document.getElementById("ask-buttons").hidden = true;
+    document.getElementById("ask-yes").hidden = false;
+    document.getElementById("ask-have-qty").focus();
+  });
+  document.getElementById("ask-none").addEventListener("click", function () {
+    askAnswer({ have: false }, this);
+  });
+  document.getElementById("ask-add").addEventListener("click", function () {
+    askAnswer({
+      have: true,
+      qty: Number(document.getElementById("ask-have-qty").value) || 0,
+      price: Number(document.getElementById("ask-have-price").value) || 0
+    }, this);
+  });
+}
+
+function askAnswer(answer, btn) {
+  var body = { action: "askReply", ask: askToken };
+  for (var k in answer) body[k] = answer[k];
+  btn.disabled = true;
+  document.getElementById("ask-err").textContent = "";
+  api(body).then(function (j) {
+    btn.disabled = false;
+    if (j.error) { document.getElementById("ask-err").textContent = j.error; return; }
+    document.getElementById("ask-panel").innerHTML = j.have
+      ? '<h2>On your list</h2><p><b>' + esc(askItem.common) + '</b> is on your list for Cactus Warehouse now, ' +
+        'at the price you set. They can order it from you straight away, and you will get that order by email. ' +
+        'Thank you.</p>'
+      : '<h2>Thank you</h2><p>We told Cactus Warehouse you do not have ' + esc(askItem.common) +
+        '. Nothing was added to your list.</p>';
+  }).catch(function () { btn.disabled = false; });
+}
 
 /* ================= GATE ================= */
 
@@ -2596,7 +2892,7 @@ document.getElementById("addform").addEventListener("submit", function (e) {
 
 /* ================= ROUTING ================= */
 
-var VIEWS = { portal: "view-portal", shop: "view-shop", gate: "view-gate", bench: "view-bench", setup: "view-setup", inside: "view-inside" };
+var VIEWS = { portal: "view-portal", shop: "view-shop", gate: "view-gate", bench: "view-bench", setup: "view-setup", inside: "view-inside", ask: "view-ask" };
 
 function setView(v) {
   if ((v === "portal" || v === "shop" || v === "inside") && !isOwner()) v = landing();
@@ -2610,6 +2906,13 @@ function setView(v) {
 
 function boot() {
   loadLocal();
+  // An emailed request link stands on its own. It has to work before any
+  // session check, because the grower answering it has never had a login.
+  var askMatch = location.search.match(/[?&]ask=([^&]+)/);
+  if (askMatch) {
+    openAsk(decodeURIComponent(askMatch[1])).then(hideSplash, hideSplash);
+    return;
+  }
   var invited = /[?&]invite=/.test(location.search);
   if (!S.session) {
     readInvite().then(function () { renderGate(); setView("gate"); hideSplash(); });
