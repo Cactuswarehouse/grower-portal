@@ -736,6 +736,10 @@
           <button type="button" class="btn ghost auto" id="i-email-save">Save</button>
         </div>
         <p class="hint">Every order you place goes to this address on its own, with the staging list. Leave blank to handle it yourself with Print.</p>
+        <label class="hint" for="i-fulfillmail" style="display:flex; align-items:center; gap:8px; margin-top:10px; cursor:pointer">
+          <input type="checkbox" id="i-fulfillmail" style="width:16px; height:16px; accent-color: var(--accent)">
+          <span>Also tell them when an order is marked fulfilled</span>
+        </label>
       </div>
     </div>
 
@@ -1028,6 +1032,7 @@ function adaptYard(g) {
   var pack = Number(g.defaultPack) || 1;
   return {
     id: g.id, code: g.code || "", name: g.name, where: g.where, sells: g.sells, email: g.email || "",
+    noFulfillMail: !!g.noFulfillMail,
     pack: pack, unit: pack > 1 ? "tray" : "plant", units: pack > 1 ? "trays" : "plants",
     ready: !!g.ready, hasLogin: !!g.hasLogin, account: g.hasLogin ? {} : null,
     items: items,
@@ -1312,6 +1317,7 @@ function renderInside() {
   if (!inviteBox.hidden) document.getElementById("i-link").value = inviteLink(y.code);
   document.getElementById("i-reset-wrap").hidden = !y.hasLogin;
   document.getElementById("i-email").value = y.email || "";
+  document.getElementById("i-fulfillmail").checked = !y.noFulfillMail;
 
   document.getElementById("i-count").textContent = (live + hiddenCount) + " listings";
   var tb = document.getElementById("i-listings");
@@ -1398,10 +1404,13 @@ document.getElementById("i-email-save").addEventListener("click", function () {
   var y = yard(insideId);
   if (!y) return;
   var v = document.getElementById("i-email").value.trim();
-  api({ action: "setGrowerEmail", growerId: y.id, email: v }).then(function (j) {
+  var tellThem = document.getElementById("i-fulfillmail").checked;
+  api({ action: "updateGrower", growerId: y.id, email: v, noFulfillMail: !tellThem }).then(function (j) {
     if (j.error) { toast(j.error); return; }
-    y.email = v;
-    toast(v ? "Saved. Orders now email them at " + v + "." : "Cleared. Orders will not be emailed to them.");
+    y.email = v; y.noFulfillMail = !tellThem;
+    toast(!v ? "Cleared. Orders will not be emailed to them."
+      : tellThem ? "Saved. Orders and fulfilled notices go to " + v + "."
+      : "Saved. Orders go to " + v + ", fulfilled notices stay with you.");
   }).catch(function () {});
 });
 
